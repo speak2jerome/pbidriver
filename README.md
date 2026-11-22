@@ -35,10 +35,10 @@ Agents can already write DAX and edit PBIP files, but they can't see the result.
 ## Install
 
 ```powershell
-pip install git+https://github.com/speak2jerome/pbidriver
+pip install pbidriver
 ```
 
-Or install the wheel attached to a [release](https://github.com/speak2jerome/pbidriver/releases). From a checkout: `pip install .` (or `pip install -r requirements.txt` and run `python -m pbidriver`). It isn't on PyPI yet.
+The latest code from GitHub: `pip install git+https://github.com/speak2jerome/pbidriver`. From a checkout: `pip install .` (or `pip install -r requirements.txt` and run `python -m pbidriver`).
 
 Playwright is used only to attach to Power BI's own WebView2, so `playwright install` is **not** needed.
 
