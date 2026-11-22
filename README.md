@@ -64,7 +64,7 @@ Agents can already write DAX and edit PBIP files, but they can't see the result.
 ## Requirements
 
 - Windows 10 or 11, with Power BI Desktop (Microsoft Store or installer build).
-- Python 3.9+.
+- Python 3.9 to 3.14 (each tested on Windows in CI).
 - Optional, for page captures and reloads on any open window: Microsoft's **Desktop Bridge**, in Power BI Desktop June 2026 or later. It's on by default (Options > Security > "Enable external tool access to Power BI Desktop through secure local APIs").
 
 ## Install
@@ -282,10 +282,12 @@ The npm package in `npm/` is a thin Node wrapper that runs the same Python CLI; 
 
 The powerbi-builder skill lives in `pbidriver/skill/` (packaged, used by `setup` and `pbi_guide`); `python scripts/sync_skill.py` copies it into the Claude Code plugin in `plugins/pbidriver/`, and a test checks the copies match.
 
+The Tests workflow runs the offline suite on Windows with Python 3.9 to 3.14, and the npm tests, on every push and pull request.
+
 **Releasing:**
-1. Raise the version in `pbidriver/__init__.py`, `npm/package.json` and `plugins/pbidriver/.claude-plugin/plugin.json`; the publish workflow checks the first two match.
-2. Add a `CHANGELOG.md` entry.
-3. Tag `vX.Y.Z` and publish a GitHub release. The Publish workflow uploads to PyPI and npm through trusted publishing.
+1. Raise the version in `pbidriver/__init__.py`, `npm/package.json`, `plugins/pbidriver/.claude-plugin/plugin.json`, `CITATION.cff` and the version line in `llms.txt`; the publish workflow checks the first two match.
+2. Add a `CHANGELOG.md` entry, and make sure the Tests workflow is green.
+3. Tag `vX.Y.Z` and publish a GitHub release. The Publish workflow uploads to PyPI and npm through trusted publishing; no tokens or manual publishing.
 
 ## Author
 

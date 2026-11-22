@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.1 (2026-11-22)
+
+No changes to commands; project information and packaging.
+
+- **Zynxtech:** pbidriver is part of [Zynxtech](https://zynxtech.in) open source. The project page, [zynxtech.in/projects/pbidriver](https://zynxtech.in/projects/pbidriver/), is now the homepage in the PyPI and npm metadata, the Claude Code plugin and CITATION.cff. The author contact is jeromeeliezer@zynxtech.in. The README, docs (footer, home page, FAQ, structured data) and llms.txt say so, and pbidriver locate links the project page.
+- **Python versions:** the package lists Python 3.9 to 3.14, each tested on Windows by a new Tests workflow (which also runs the npm wrapper's tests), so PyPI and the README badge show them.
+- **README:** badges show current versions; links work on PyPI's page too.
+- **Releases:** npm is published by the release workflow through npm trusted publishing (no manual step), and the npm job skips versions that are already on npm.
+
 ## 0.3.0 (2026-11-22)
 
 - **Clean screenshots for design review:** `shot --clean` captures the page as a viewer sees it (no labels, selection outline, hover header, tooltip or open menu) and returns each visual's box in page units plus a layout check: overlaps, edges that almost line up, uneven gaps, visuals off the page. `add-page`, `add-visual` and `remove-visual` take `--clean` with `--shot`.

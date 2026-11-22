@@ -67,7 +67,7 @@ AI agents can already write DAX and edit PBIP report files, but they can't see t
 ## Requirements
 
 - Windows 10 or 11 with Power BI Desktop (Microsoft Store or installer build).
-- Python 3.9 or later.
+- Python 3.9 to 3.14 (each tested on Windows in CI), or Node.js with uv.
 - Optional: Microsoft's Desktop Bridge (Power BI Desktop June 2026 or later, on by default) for captures and reloads on windows you opened yourself.
 
 ## Next steps

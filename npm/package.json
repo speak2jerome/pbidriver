@@ -1,6 +1,6 @@
 {
   "name": "pbidriver",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "WebDriver for Power BI Desktop: let AI agents build, see and drive Power BI reports (PBIP authoring, screenshots, visual data, dialogs, slicers, DAX). CLI and MCP server, run from Node.",
   "keywords": [
     "power-bi",

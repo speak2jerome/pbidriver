@@ -1,6 +1,6 @@
 {
   "name": "pbidriver",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Agent-driven Power BI building kit: the pbidriver MCP server (Power BI Desktop UI, PBIP pages and visuals, screenshots, on-screen numbers, slicers, dialogs, refresh, save), Microsoft's Power BI Modeling MCP (semantic model), and the powerbi-builder skill that ties them together.",
   "author": {
     "name": "Jerome Eliezer",

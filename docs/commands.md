@@ -26,7 +26,7 @@ Run `pbidriver <command> --help` for every option. Every command prints one JSON
 | `shot --overlay ITEM ...` | Draws chosen items: `index`, `type`, `title`, `size` and `pos` (page units, as `add-visual` uses), `errors`, `perf` (render ms from Performance Analyzer, coloured against `--threshold`, default 500), `grid` (every `--grid-size` units, default 40), `align` (near-miss edges), `gaps` (spacing between neighbours), `overlap`, or `all` (everything but `perf`). Canvas captures only. |
 | `shot --scale 2` | Real 2× detail, re-rendered rather than upscaled. |
 | `shot --bridge` | Captures through Microsoft's Desktop Bridge. This happens automatically for a Power BI window that has no DevTools. |
-| `visuals [--page P] [--all-pages]` | Live list of visuals: index, type, title, position and size, text, and any error. |
+| `visuals [--page P] [--all-pages] [--text-limit N]` | Live list of visuals: index, type, title, position and size, text (up to `--text-limit` characters, default 300, 0 for all), and any error. |
 
 ## Read data
 
@@ -50,7 +50,7 @@ These accept `--page`, `--view`, `--shot` (capture the result) and `--force` (ac
 |---|---|
 | `slicer --visual V --select A B ...` | Sets exactly this selection in a list or dropdown slicer, including long virtualized lists. |
 | `slicer --visual V --clear` | Clears the slicer. With no flag, `slicer` lists the options and what is selected. |
-| `click [--visual V] [--text T \| --at X,Y]` | Clicks an element by its text or accessible name, or at a point (fractions 0–1 or pixels) inside a visual. Add `--ctrl`, `--shift`, `--double` or `--right`. |
+| `click [--visual V] [--text T \| --at X,Y]` | Clicks an element by its text or accessible name, or at a point (fractions 0–1 or pixels) inside a visual. Add `--ctrl`, `--shift`, `--alt`, `--double` or `--right`. |
 | `hover [--visual V] [--text T \| --at X,Y]` | Hovers a point and returns the tooltip's rows. |
 | `menu [--visual V] [--text T \| --at X,Y]` | Opens the right-click menu and lists its items. |
 | `menu --visual V --more` | Opens the visual's "More options" menu (sort, export data, show as a table, spotlight...). |
@@ -67,7 +67,7 @@ These write PBIR files in the PBIP project open in Power BI (or `--project <file
 
 | Command | What it does |
 |---|---|
-| `new FOLDER --name NAME [--open] [--git]` | Creates a blank PBIP project: report with one page, empty model. `--open` launches it and returns the model's port; `--git` runs `git init` and a first commit. |
+| `new FOLDER --name NAME [--page-name P] [--width W --height H] [--open] [--git]` | Creates a blank PBIP project: report with one page (`--page-name`, default "Page 1"; 1280 x 720 unless `--width`/`--height`), empty model. `--open` launches it and returns the model's port; `--git` runs `git init` and a first commit. |
 | `layout [--page P]` | Pages and visuals as stored in the files: ids, types, positions, fields. |
 | `add-page NAME [--width W --height H]` | Adds a page. |
 | `add-visual TYPE --field F ... [--page P] [--x --y --width --height] [--title T] [--sort F [--sort-dir asc]]` | Adds a visual: `card`, `cardVisual`, `clusteredColumnChart`, `columnChart`, `clusteredBarChart`, `barChart`, `lineChart`, `areaChart`, `pieChart`, `donutChart`, `tableEx` (table), `pivotTable` (matrix), `slicer` (`--mode list\|dropdown`), `textbox` (`--text`). Fields: `Table[Column]`, `[Measure]`, `Sum(Table[Column])`, optionally with a role: `Category=Sales[Region]`. Names are checked against the live model. |
@@ -105,3 +105,5 @@ These write PBIR files in the PBIP project open in Power BI (or `--project <file
 | `--pid N` | A Power BI process from `instances`, for windows you opened yourself. |
 | `--settle S` | Maximum seconds to wait for rendering to finish (default 20, or the `PBIDRIVER_SETTLE` environment variable). Lower it for faster commands on light pages. |
 | `--out PATH` | Where to write a capture. The default is `./pbidriver_shots/`. |
+| `--timeout S` | How long to wait, in seconds, for commands that wait on Power BI: `launch` and `new --open` (default 300), `refresh` (600), `save` (120), `dax` (120, the query timeout), `close` (60), `wait` (30). |
+| `--exact` | With `--text` (or `type --into`): match the whole text or accessible name, not part of it. |
