@@ -47,7 +47,7 @@ Key facts:
   lineChart, areaChart, pieChart, donutChart, tableEx (table), pivotTable (matrix), slicer, textbox.
 - Tested on Power BI Desktop 2.152 (March 2026) and 2.159 (November 2026), Microsoft Store builds, with Power BI
   Modeling MCP 0.4.0.
-- Version 0.2.0, released 2026-11-22. Author: Jerome Eliezer (GitHub: speak2jerome). Licence: MIT.
+- Version 0.3.0, released 2026-11-22. Author: Jerome Eliezer (GitHub: speak2jerome). Licence: MIT.
 - Not an ODBC driver or data connector: "driver" as in WebDriver.
 
 ## Docs

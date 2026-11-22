@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 (2026-11-22)
 
 - **Clean screenshots for design review:** `shot --clean` captures the page as a viewer sees it (no labels, selection outline, hover header, tooltip or open menu) and returns each visual's box in page units plus a layout check: overlaps, edges that almost line up, uneven gaps, visuals off the page. `add-page`, `add-visual` and `remove-visual` take `--clean` with `--shot`.
 - **More overlays:** `shot --overlay` draws any of index, type, title, size, pos (page units), errors, perf (render time per visual, coloured against `--threshold`), grid (`--grid-size`), align, gaps, overlap, or all.

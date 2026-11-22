@@ -5,5 +5,5 @@ the local model, pbidriver.definition reads report files, pbidriver.project writ
 pbidriver.mcp_server is the MCP server and pbidriver.kit is `setup` / `doctor`.
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __author__ = "Jerome Eliezer"
