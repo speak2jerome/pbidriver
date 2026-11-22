@@ -72,11 +72,19 @@ def test_png_paths_are_found_anywhere_in_a_result():
     assert mcp_server._pngs(result, []) == ["a.png", "b.PNG"]
 
 
-def test_guide_topics_exist():
+def test_guide_topics_exist(capsys):
     for topic in mcp_server.GUIDE_TOPICS:
         text = mcp_server._guide(topic)
         assert text.strip() and not text.startswith("---")
+        assert cli.main(["guide", topic]) == 0
+        out = json.loads(capsys.readouterr().out)
+        assert out["text"] == text and Path(out["file"]).is_file()
     assert "pbi_refresh" in mcp_server._guide(None)
+    # Every topic the guide names exists, and the skill links every reference file.
+    skill = (Path(mcp_server.__file__).with_name("skill") / "powerbi-builder" / "SKILL.md").read_text(encoding="utf-8")
+    for rel in mcp_server.GUIDE_TOPICS.values():
+        if rel != "SKILL.md":
+            assert f"]({rel})" in skill, rel
 
 
 class Server:

@@ -58,14 +58,14 @@ These accept `--page`, `--view`, `--shot` (capture the result) and `--force` (ac
 
 ## Build reports (PBIP projects)
 
-These write PBIR files in the PBIP project open in Power BI (or `--project <file.pbip>`). Add `--reload` to show the change in Power BI right away, or `--shot` to reload and capture the page with visual indices drawn on it. Model changes (tables, measures, relationships) go through Microsoft's [Power BI Modeling MCP](kit.md).
+These write PBIR files in the PBIP project open in Power BI (or `--project <file.pbip>`). Add `--reload` to show the change in Power BI right away, or `--shot` to reload and capture the page with visual indices drawn on it (`--out` for the file). Both reload the report only, so unsaved model changes stay. Model changes (tables, measures, relationships) go through Microsoft's [Power BI Modeling MCP](kit.md).
 
 | Command | What it does |
 |---|---|
 | `new FOLDER --name NAME [--open]` | Creates a blank PBIP project: report with one page, empty model. `--open` launches it and returns the model's port. |
 | `layout [--page P]` | Pages and visuals as stored in the files: ids, types, positions, fields. |
 | `add-page NAME [--width W --height H]` | Adds a page. |
-| `add-visual TYPE --field F ... [--page P] [--x --y --width --height] [--title T]` | Adds a visual: `card`, `cardVisual`, `clusteredColumnChart`, `columnChart`, `clusteredBarChart`, `barChart`, `lineChart`, `areaChart`, `pieChart`, `donutChart`, `tableEx` (table), `pivotTable` (matrix), `slicer` (`--mode list\|dropdown`), `textbox` (`--text`). Fields: `Table[Column]`, `[Measure]`, `Sum(Table[Column])`, optionally with a role: `Category=Sales[Region]`. Names are checked against the live model. |
+| `add-visual TYPE --field F ... [--page P] [--x --y --width --height] [--title T] [--sort F [--sort-dir asc]]` | Adds a visual: `card`, `cardVisual`, `clusteredColumnChart`, `columnChart`, `clusteredBarChart`, `barChart`, `lineChart`, `areaChart`, `pieChart`, `donutChart`, `tableEx` (table), `pivotTable` (matrix), `slicer` (`--mode list\|dropdown`), `textbox` (`--text`). Fields: `Table[Column]`, `[Measure]`, `Sum(Table[Column])`, optionally with a role: `Category=Sales[Region]`. Names are checked against the live model. |
 | `remove-visual ID [--page P]` | Deletes a visual (ids from `layout`). |
 | `save --as FILE.pbip` | Saves the open report as a PBIP project (or another `.pbix`/`.pbit`) and switches to it. `--overwrite` replaces an existing file. |
 | `refresh [--sync]` | Home > Refresh, waiting until it finishes; returns the error text when a source fails. `--sync` first saves and reloads the project so tables created through the Modeling MCP are included, and saves after. |
@@ -88,6 +88,7 @@ These write PBIR files in the PBIP project open in Power BI (or `--project <file
 | `mcp [--no-images] [--cwd DIR]` | Runs pbidriver as an MCP server over stdio. Every command above is a tool named `pbi_<command>`; screenshots are returned as images. Also offers a `pbi_guide` tool, guide resources and two prompts (`build-report`, `review-report`). |
 | `setup [FOLDER] [--client claude\|vscode\|cursor\|codex\|all] [--runner ...] [--modeling ...] [--dry-run]` | Writes MCP configs (pbidriver and the Power BI Modeling MCP), an `AGENTS.md` section and the powerbi-builder skill into a project, without overwriting what's there. |
 | `doctor [--project FOLDER]` | Checks Power BI Desktop, running instances, the Desktop Bridge, the Modeling MCP, uv/Node and the project's agent setup. |
+| `guide [workflow\|visuals\|modeling-mcp\|pbir\|troubleshooting]` | Prints a topic of the powerbi-builder guide (the MCP tool `pbi_guide`). |
 
 ## Common options
 

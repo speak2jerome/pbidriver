@@ -353,7 +353,8 @@ def parse_field(spec: str, fields: dict[str, dict[str, set]] | None) -> dict:
 
 def add_visual(rep: Path, page_spec: str | None, vtype: str, roles: dict[str, list[str]], x: float, y: float,
                width: float, height: float, title: str | None = None, text: str | None = None,
-               slicer_mode: str | None = None, fields: dict[str, dict[str, set]] | None = None) -> dict:
+               slicer_mode: str | None = None, fields: dict[str, dict[str, set]] | None = None,
+               sort: str | None = None, sort_dir: str = "desc") -> dict:
     """Write one visual.json. `roles` maps a data role (see VISUALS) to field specs."""
     if vtype not in VISUALS:
         raise ProjectError(f"Unsupported visual type {vtype!r}. Supported: {', '.join(VISUALS)}")
@@ -389,6 +390,12 @@ def add_visual(rep: Path, page_spec: str | None, vtype: str, roles: dict[str, li
         raise ProjectError(f"{vtype} needs fields for at least one role: {need}")
     if query:
         visual["query"] = {"queryState": query}
+    if sort:
+        if not query:
+            raise ProjectError("--sort needs a visual with fields.")
+        visual["query"]["sortDefinition"] = {"sort": [{
+            "field": parse_field(sort, fields)["field"],
+            "direction": "Ascending" if sort_dir.lower().startswith("asc") else "Descending"}]}
     objects: dict = {}
     if vtype == "textbox":
         if not text:
@@ -400,6 +407,8 @@ def add_visual(rep: Path, page_spec: str | None, vtype: str, roles: dict[str, li
     if vtype == "slicer" and title:  # a slicer already has a header (the field name): retitle that one
         objects["header"] = [{"properties": {"text": _literal(title)}}]
         title = None
+    if vtype == "card" and title:  # a card labels its number with the field name; the title replaces that label
+        objects["categoryLabels"] = [{"properties": {"show": _literal(False)}}]
     if objects:
         visual["objects"] = objects
     if title:

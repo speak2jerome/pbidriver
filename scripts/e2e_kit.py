@@ -254,6 +254,10 @@ async def run(a) -> int:
             check("column chart values equal DAX/CSV per region", shown == by_region, {"shown": shown, "csv": by_region})
             check("cards show the totals", any("6,207" in str(c.get("values")) or str(total_units) in str(c.get("values"))
                                                for c in cards), [c.get("values") for c in cards])
+            table = next((v for v in r.get("visuals", []) if v["type"] == "tableEx"), {})
+            check("table read returns just its columns", table.get("columns") ==
+                  ["Product", "Total Units", "Total Revenue", "Avg Price"] and len(table.get("rows", [])) == 6,
+                  table.get("columns"))
             check("every visual on page 1 rendered data", len(vis) == len(visuals) and not any(
                 v.get("error_text") for v in r.get("visuals", [])), [v["type"] for v in r.get("visuals", [])])
 
@@ -264,12 +268,16 @@ async def run(a) -> int:
                              field=["Rows=Regions[Manager]", "Columns=Sales[Product]", "Values=[Total Revenue]"],
                              x=20, y=20, width=1240, height=400, title="Revenue by manager and product")
             r = await ag.pbi("pbi_add_visual", port=a.port, type="clusteredBarChart", page="By manager",
-                             field=["Regions[Manager]", "Avg(Sales[Units])"], x=20, y=440, width=610, height=260)
+                             field=["Regions[Manager]", "Avg(Sales[Units])"], x=20, y=440, width=610, height=260,
+                             sort="Avg(Sales[Units])")
             r = await ag.pbi("pbi_add_visual", port=a.port, type="columnChart", page="By manager",
                              field=["Category='Date'[Month]", "Y=[Total Revenue]"], x=650, y=440, width=610,
                              height=260, title="Revenue by month", shot=True)
             check("page 2 visuals added and captured", r.get("ok") and r.get("_images", 0) >= 1, r)
             r = await ag.pbi("pbi_read", port=a.port, page="By manager")
+            bars = [float(row[1]) for row in next((v for v in r.get("visuals", []) if v["type"] == "clusteredBarChart"),
+                                                  {}).get("rows", [])]
+            check("bar chart sorted descending (sort=)", len(bars) == 4 and bars == sorted(bars, reverse=True), bars)
             months = next((v for v in r.get("visuals", []) if v["type"] == "columnChart"), {}).get("rows", [])
             check("months sorted Jan..Dec through sortByColumn",
                   [m[0] for m in months] == ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct",
@@ -303,7 +311,8 @@ async def run(a) -> int:
             r = await ag.pbi("pbi_close", port=a.port)
             check("pbi_close", r.get("ok") and r.get("closed"), r)
             r = await ag.pbi("pbi_launch", file=str(work / "proj" / "Sales.pbip"), port=a.port)
-            check("pbi_launch reopens the project", r.get("ok") and r.get("loaded"), r)
+            check("pbi_launch reopens the project with its model port and no refresh needed",
+                  r.get("ok") and r.get("loaded") and r.get("model_port") and not r.get("next"), r)
             r = await ag.pbi("pbi_read", port=a.port, page="Page 1", visual="clusteredColumnChart")
             shown = {row[0]: money(row[1]) for row in r.get("visual", {}).get("rows", [])}
             check("data survived save + reopen", shown == by_region, {"shown": shown, "alerts": r.get("alerts")})

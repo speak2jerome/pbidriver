@@ -77,6 +77,18 @@ def test_add_and_remove_visuals(proj):
     tv = json.loads(open(t["file"], encoding="utf-8").read())["visual"]
     assert len(tv["objects"]["general"][0]["properties"]["paragraphs"]) == 2
 
+    c = project.add_visual(rep, "Second", "card", {"Values": ["[Total Revenue]"]}, 0, 0, 100, 100, title="Revenue",
+                           fields=FIELDS)
+    cv = json.loads(open(c["file"], encoding="utf-8").read())["visual"]
+    assert cv["objects"]["categoryLabels"][0]["properties"]["show"]["expr"]["Literal"]["Value"] == "false"
+    project.remove_visual(rep, "Second", c["id"])
+
+    b = project.add_visual(rep, "Second", "clusteredBarChart", {"Category": ["Sales[Region]"], "Y": ["[Total Revenue]"]},
+                           0, 0, 100, 100, fields=FIELDS, sort="[Total Revenue]")
+    sd = json.loads(open(b["file"], encoding="utf-8").read())["visual"]["query"]["sortDefinition"]["sort"][0]
+    assert sd["direction"] == "Descending" and sd["field"]["Measure"]["Property"] == "Total Revenue"
+    project.remove_visual(rep, "Second", b["id"])
+
     listed = project.list_visuals(rep, "Second")
     assert {x["id"] for x in listed} == {out["id"], s["id"], t["id"]}
     project.remove_visual(rep, "Second", s["id"])

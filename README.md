@@ -39,7 +39,7 @@ After `pbidriver setup`, ask your agent something like "Build a sales report fro
 4. `pbi_add_visual` adds each visual, with field names checked against the live model; `shot=true` returns a screenshot.
 5. `pbi_shot`, `pbi_read` and `pbi_dax` verify that every visual shows the right numbers; `pbi_save` saves.
 
-Claude Code users can install the same kit as a plugin: `/plugin marketplace add speak2jerome/pbidriver`, then `/plugin install pbidriver@pbidriver`. `scripts/e2e_kit.py` runs this whole flow through both MCP servers against a real Power BI Desktop and checks 40 things along the way, from model to saved-and-reopened report.
+Claude Code users can install the same kit as a plugin: `/plugin marketplace add speak2jerome/pbidriver`, then `/plugin install pbidriver@pbidriver`. `scripts/e2e_kit.py` runs this whole flow through both MCP servers against a real Power BI Desktop and checks 42 things along the way, from model to saved-and-reopened report.
 
 ## Why
 
@@ -145,7 +145,7 @@ Every command prints `{"ok": true, ...}` or `{"ok": false, "error": "..."}`. Com
 | `new FOLDER --name NAME [--open]` | Creates a blank PBIP project (one page, empty model); `--open` launches it. |
 | `layout [--page P]` | Pages and visuals in the PBIR files: ids, types, positions, fields. |
 | `add-page NAME` | Adds a page. |
-| `add-visual TYPE --field F ... [--x --y --width --height --title --page]` | Adds a card, chart (column, bar, line, area, pie, donut), table, matrix, slicer or textbox. Fields: `Table[Column]`, `[Measure]`, `Sum(Table[Column])`, optionally `Role=...`. |
+| `add-visual TYPE --field F ... [--x --y --width --height --title --page --sort F]` | Adds a card, chart (column, bar, line, area, pie, donut), table, matrix, slicer or textbox. Fields: `Table[Column]`, `[Measure]`, `Sum(Table[Column])`, optionally `Role=...`. |
 | `remove-visual ID` | Deletes a visual. |
 | `refresh [--sync]` | Refreshes data and waits; reports the failing source's error. `--sync` saves and reloads first so tables created through the Modeling MCP are included, then saves. |
 | `save --as FILE.pbip` | Saves the open report as a PBIP project (or `.pbix`/`.pbit`). |
@@ -166,6 +166,7 @@ Every command prints `{"ok": true, ...}` or `{"ok": false, "error": "..."}`. Com
 | `mcp` | Runs the MCP server over stdio: every command as a `pbi_*` tool, plus `pbi_guide`. |
 | `setup [FOLDER] [--client ...]` | Writes MCP configs (pbidriver + Power BI Modeling MCP), an `AGENTS.md` section and the powerbi-builder skill. |
 | `doctor` | Checks Power BI Desktop, the Desktop Bridge, the Modeling MCP and the project setup. |
+| `guide [TOPIC]` | The powerbi-builder guide: workflow, visuals, modeling-mcp, pbir, troubleshooting. |
 
 Common options: `--port` (default `9333`, env `PBIDRIVER_PORT`), `--pid`, `--settle` (max seconds to wait for rendering, default 20). Captures go to `./pbidriver_shots/` unless you pass `--out`.
 

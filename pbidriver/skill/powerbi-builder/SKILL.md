@@ -14,7 +14,10 @@ Two tools, two jobs. Use both; neither can do the other's job.
 
 Without MCP, every `pbi_<name>` tool is the CLI command `pbidriver <name>` (also `uvx pbidriver <name>` or
 `npx pbidriver <name>`); arguments become `--flags` (`add_visual field=[...]` is `add-visual --field ... --field ...`)
-and the output is the same JSON.
+and the output is the same JSON. `pbi_guide topic=X` is `pbidriver guide X`.
+
+Screenshots are written to `./pbidriver_shots/` under the working folder (for the MCP server, the folder the
+client started it in) unless you pass `out=<file.png>`; MCP tools also return them as images.
 
 More detail (also available through the `pbi_guide` tool, `topic=` in brackets):
 
@@ -50,6 +53,9 @@ More detail (also available through the `pbi_guide` tool, `topic=` in brackets):
    last visual of a batch: it reloads the report and returns an annotated screenshot. Plan the layout on the
    1280x720 canvas first (`pbi_guide topic=visuals` has a grid). `pbi_add_page name=...` adds pages
    (then pass `page=` to add_visual). `pbi_layout` lists visual ids; `pbi_remove_visual` deletes one.
+   `reload=true` and `shot=true` reload the report only: measures and tables you just made with the Modeling
+   MCP stay, unsaved, and show up at once. Visual edits are written to disk right away, so a later `pbi_save`
+   may report `had_unsaved_changes: false`; that's expected.
 7. **Verify, don't assume.** Look at the screenshot: titles, overlaps, truncated labels, empty visuals. Then
    `pbi_read` gives the numbers each visual shows; compare a few with `pbi_dax`. A visual can render without
    errors and still be wrong (a missing relationship repeats the grand total on every row; a column summed
@@ -60,6 +66,8 @@ More detail (also available through the `pbi_guide` tool, `topic=` in brackets):
 
 - **.pbip:** `pbi_launch file=<path>.pbip`. **.pbix:** `pbi_launch`, then `pbi_save as=<dir>/<Name>.pbip` to convert
   it; pbidriver authors visuals in PBIP projects only. A .pbix can still be inspected and driven.
+  `pbi_launch` returns `model_port` (for the Modeling MCP). If it returns `next` about a refresh, or
+  `alerts.banners` says "Refresh now" (data missing or stale), run `pbi_refresh sync=true` before reading numbers.
 - Look first: `pbi_inventory` (pages, visuals, fields, filters, bookmarks from the file, no clicking),
   `pbi_pages`, `pbi_shot page=... annotate=true` per page, `pbi_read`.
 - Model changes go through the Modeling MCP, connected as in step 2. Report changes go through

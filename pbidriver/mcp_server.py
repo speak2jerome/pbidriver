@@ -25,7 +25,7 @@ from pbidriver import __version__
 
 PROTOCOL_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
 PREFIX = "pbi_"
-NOT_TOOLS = {"mcp", "setup"}  # commands that make no sense as tools
+NOT_TOOLS = {"mcp", "setup", "guide"}  # not tools (guide is served directly as pbi_guide)
 MAX_IMAGES = 8
 MAX_IMAGE_SIDE = 2000
 MAX_IMAGE_BYTES = 3_500_000
@@ -36,7 +36,8 @@ DESTRUCTIVE = {"close", "remove-visual"}
 
 # Guidance an agent needs that doesn't fit in argparse help (which is written for a terminal).
 NOTES = {
-    "launch": "Opens a .pbix/.pbip/.pbit in a NEW Power BI Desktop window with DevTools on `port`. "
+    "launch": "Opens a .pbix/.pbip/.pbit in a NEW Power BI Desktop window with DevTools on `port` and returns its "
+              "model_port. "
               "Every UI tool (shot, read, click, slicer, ...) needs an instance started this way. Returns when the "
               "report has loaded, or early with `alerts` when a dialog blocks loading (answer it with pbi_dialog). "
               "Give each instance its own port.",
@@ -58,7 +59,8 @@ NOTES = {
                   "live model, so create tables and measures first. Field syntax: Table[Column], [Measure], "
                   "'My Table'[Column], or Sum/Avg/Min/Max/Count/DistinctCount/Median(Table[Column]). Prefix a role: "
                   "Category=Sales[Region], Y=[Total Sales]; without one the field goes to the first fitting role. "
-                  "Use shot=true to reload and see the result. Run pbi_guide topic=visuals for every type's roles.",
+                  "sort= orders it by a field. Use shot=true to reload (report only: unsaved model changes stay) and "
+                  "see the result. Run pbi_guide topic=visuals for every type's roles and a layout grid.",
     "remove-visual": "Deletes a visual (id from pbi_layout) from the PBIR files.",
     "reload": "Reloads a PBIP from disk through the Desktop Bridge. After editing report files, use "
               "report_only=true: it keeps model changes made through the Modeling MCP that aren't saved yet. A full "

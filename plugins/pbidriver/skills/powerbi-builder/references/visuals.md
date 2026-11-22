@@ -2,7 +2,7 @@
 
 `pbi_add_visual` (CLI `pbidriver add-visual`) writes one visual into the PBIR files of the PBIP project open in
 Power BI (or `project=<file.pbip>`). Set `reload=true` to show it right away, or `shot=true` to reload and get an
-annotated screenshot back.
+annotated screenshot back (`out=` picks the file). Both reload the report only, so unsaved model changes stay.
 
 ## Types and roles
 
@@ -63,7 +63,15 @@ visuals until labels truncate. Check the screenshot after each batch.
 ## Titles and text
 
 `title=` sets the visual's title (charts show a default title built from their fields otherwise). For a
-slicer it renames the slicer header. Textboxes use `text=`; they render at 14 pt.
+slicer it renames the slicer header. For a `card` it replaces the label under the number (without `title`, the
+card shows the measure name under the number, which is usually enough). Textboxes use `text=`; they render at 14 pt.
+
+## Sorting
+
+`sort="[Total Revenue]"` (and `sort_dir=asc`, default `desc`) sorts a chart or table by one of its fields when
+it's added. To change the sort of an existing visual, use its menu like a user would:
+`pbi_menu visual=<i> more=true` lists the items, `pbi_menu visual=<i> more=true choose="Sort by > Total Revenue"`
+picks the field, `choose="Sort by > Sort descending"` sets the direction; then `pbi_save` writes it to the file.
 
 ## Changing or removing
 

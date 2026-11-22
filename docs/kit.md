@@ -96,7 +96,7 @@ next, and `alerts` reports anything that blocks Power BI (dialogs, banners, brok
 an agent would, against a real Power BI Desktop (2.159, November 2026). It creates a project from a 600-row CSV, builds a
 fact table, two DAX tables, two relationships, a date table with sorted months and three measures, refreshes,
 builds two pages with 11 visuals, compares every chart and card with DAX and the source data, slices, saves,
-closes, reopens and checks the data survived: 40 checks, about 100 seconds.
+closes, reopens and checks the data survived: 42 checks, about 100 seconds.
 
 ```powershell
 pip install mcp

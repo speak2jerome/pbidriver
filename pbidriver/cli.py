@@ -1094,7 +1094,16 @@ def cmd_launch(a) -> dict:
                   "seconds": round(time.time() - t0, 1), "canvas": rp.evaluate(CANVAS_JS), "pages": rp.evaluate(PAGES_JS)}
         win = pbi_window(a.port)
         result.update(pid=win[2] if win else None, window_title=win[1] if win else None)
-        return with_alerts(result, s)
+        try:
+            result["model_port"] = bridge.instance(result["pid"])["model_port"] if result["pid"] else None
+        except (DriverError, bridge.BridgeError):
+            pass
+        result = with_alerts(result, s)
+        if any("refresh now" in b["text"].lower() for b in result.get("alerts", {}).get("banners", [])):
+            result["next"] = ("Data needs a refresh (see alerts.banners): run `pbidriver refresh --sync`"
+                              if file.suffix.lower() == ".pbip" else
+                              "Data needs a refresh (see alerts.banners): run `pbidriver refresh`")
+        return result
 
 
 def _bridge_info(pid: int) -> dict:
@@ -1709,6 +1718,11 @@ def read_grid(page, index: int, max_rows: int) -> dict | None:
         row = by_row[r]
         values = [row[c][0] if c in row and row[c][0] != "" else None for c in range(1, ncols + 1)]
         (header if any(role == "c" for _, role in row.values()) else body).append(values)
+    # Tables have an accessibility column of row-selection checkboxes ("Row Selection" / "Select Row"): not data.
+    if header and header[-1] and header[-1][0] == "Row Selection" and all(
+            v[0] in (None, "Select Row") for v in body):
+        header = [h[1:] for h in header]
+        body = [v[1:] for v in body]
     total = (g["rowcount"] - len(header)) if g["rowcount"] else len(body)
     out = {"kind": "grid", "columns": header[-1] if header else None, "rows": body[:max_rows],
            "row_count": total, "truncated": total > min(len(body), max_rows)}
@@ -2425,14 +2439,16 @@ def _after_edit(a, result: dict, page_name: str | None) -> dict:
                 page = goto_page(s.report, page_name, a.settle)
                 s.report.mouse.move(1, 1)
                 settle(s.report, a.settle, quiet_ms=400)
-                path = as_png(default_out(page["name"]))
+                out = getattr(a, "out", None)
+                path = as_png(Path(out).expanduser().resolve() if out else default_out(page["name"]))
                 with fit_canvas(s.report, s.cdp(s.report), a.settle):
                     capture_target(s.report, s.cdp(s.report), "canvas", 0, 1, path)
                     data = visual_list(s.report, 80)
                     result["legend"] = annotate(path, data["visuals"], data["canvas"])
                 result["shot"] = {"file": str(path), "size": png_size(path)}
                 return with_alerts(result, s)
-        a.page, a.visual, a.all_visuals, a.full, a.bridge, a.view, a.out, a.scale = page_name, None, False, False, True, "report", None, 1
+        a.page, a.visual, a.all_visuals, a.full, a.bridge, a.view, a.scale = page_name, None, False, False, True, "report", 1
+        a.out = getattr(a, "out", None)
         result["shot"] = cmd_shot_bridge(a)
     return result
 
@@ -2503,7 +2519,7 @@ def cmd_add_visual(a) -> dict:
     w = a.width or (page["width"] or 1280) // 3
     h = a.height or (page["height"] or 720) // 3
     out = project.add_visual(rep, page["id"], a.type, roles, a.x, a.y, w, h, title=a.title, text=a.text,
-                             slicer_mode=a.mode, fields=fields or None)
+                             slicer_mode=a.mode, fields=fields or None, sort=a.sort, sort_dir=a.sort_dir)
     out["fields_checked_against"] = source
     return _after_edit(a, out, page["name"])
 
@@ -2732,8 +2748,11 @@ def build_parser() -> argparse.ArgumentParser:
     proj = argparse.ArgumentParser(add_help=False)
     proj.add_argument("--project", help=".pbip file or project folder (default: the PBIP open in Power BI)")
     after = argparse.ArgumentParser(add_help=False)
-    after.add_argument("--reload", action="store_true", help="reload the report in Power BI afterwards (Desktop Bridge)")
-    after.add_argument("--shot", action="store_true", help="reload, then capture the page with visual indices drawn on it")
+    after.add_argument("--reload", action="store_true",
+                       help="show the change in Power BI: a report-only reload, which keeps unsaved model changes")
+    after.add_argument("--shot", action="store_true",
+                       help="reload (report only), then capture the page with visual indices drawn on it")
+    after.add_argument("--out", help="with --shot: output .png path (default ./pbidriver_shots/<time>_<page>.png)")
 
     s = sub.add_parser("new", parents=[common], help="create a blank PBIP project (PBIR report + TMDL model)")
     s.add_argument("folder", help="folder to create the project in")
@@ -2770,6 +2789,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--title", help="visual title")
     s.add_argument("--text", help="textbox text (\\n for new lines)")
     s.add_argument("--mode", choices=["dropdown", "list"], help="slicer style")
+    s.add_argument("--sort", help='field to sort by, usually one of the visual\'s, e.g. "[Total Revenue]"')
+    s.add_argument("--sort-dir", choices=["desc", "asc"], default="desc", help="sort direction (default desc)")
     s.set_defaults(func=cmd_add_visual)
 
     s = sub.add_parser("remove-visual", parents=[common, proj, after], help="delete a visual from the PBIR files")
@@ -2838,6 +2859,11 @@ def build_parser() -> argparse.ArgumentParser:
     act.add_argument("--clear", action="store_true", help="clear the selection")
     s.set_defaults(func=cmd_slicer)
 
+    s = sub.add_parser("guide", help="the powerbi-builder guide for agents: workflow, visuals, modeling-mcp, pbir, troubleshooting")
+    s.add_argument("topic", nargs="?", default="workflow",
+                   choices=["workflow", "visuals", "modeling-mcp", "pbir", "troubleshooting"])
+    s.set_defaults(func=cmd_guide)
+
     s = sub.add_parser("doctor", parents=[common], help="check Power BI, the Desktop Bridge, the Modeling MCP and project setup")
     s.add_argument("--project", help="project folder whose agent setup to check (default: current folder)")
     s.set_defaults(func=cmd_doctor)
@@ -2865,6 +2891,14 @@ def cmd_mcp(a) -> dict:
     from pbidriver import mcp_server
 
     raise SystemExit(mcp_server.main([]))
+
+
+def cmd_guide(a) -> dict:
+    from pbidriver import mcp_server
+
+    path = Path(__file__).with_name("skill") / "powerbi-builder" / mcp_server.GUIDE_TOPICS[a.topic]
+    return {"topic": a.topic, "file": str(path), "topics": list(mcp_server.GUIDE_TOPICS),
+            "text": mcp_server._guide(a.topic)}
 
 
 def cmd_doctor(a) -> dict:
