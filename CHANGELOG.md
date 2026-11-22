@@ -4,6 +4,7 @@
 
 No changes to commands.
 
+- **npm package:** `npx pbidriver ...` or `npm install -g pbidriver` runs the same CLI from Node.js, through uv or Python. A JavaScript API, `run(args)`, resolves with each command's JSON result.
 - **Documentation site:** [speak2jerome.github.io/pbidriver](https://speak2jerome.github.io/pbidriver/), with setup for Claude Code, GitHub Copilot, Codex and Cursor, a command reference, how it works and a FAQ.
 - **Package metadata:** PyPI now links to the documentation and source, with more keywords and classifiers.
 - **Installing on other platforms:** pywin32 is only required on Windows, so the package installs elsewhere, for example in docs builds and CI. The commands still need Windows and Power BI Desktop.

@@ -1,6 +1,7 @@
 # pbidriver
 
 [![PyPI](https://img.shields.io/pypi/v/pbidriver)](https://pypi.org/project/pbidriver/)
+[![npm](https://img.shields.io/npm/v/pbidriver)](https://www.npmjs.com/package/pbidriver)
 [![Python](https://img.shields.io/pypi/pyversions/pbidriver)](https://pypi.org/project/pbidriver/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Docs](https://img.shields.io/badge/docs-speak2jerome.github.io%2Fpbidriver-indigo)](https://speak2jerome.github.io/pbidriver/)
@@ -44,6 +45,14 @@ Agents can already write DAX and edit PBIP files, but they can't see the result.
 ```powershell
 pip install pbidriver
 ```
+
+Or from npm, which runs the same tool and needs [uv](https://docs.astral.sh/uv/) or Python 3.9+:
+
+```powershell
+npx pbidriver status          # or: npm install -g pbidriver
+```
+
+The npm package also has a JavaScript API: `const { run } = require('pbidriver'); await run(['shot', '--page', 'Overview'])`.
 
 The latest code from GitHub: `pip install git+https://github.com/speak2jerome/pbidriver`. From a checkout: `pip install .` (or `pip install -r requirements.txt` and run `python -m pbidriver`).
 

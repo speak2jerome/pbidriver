@@ -8,8 +8,9 @@
 
 Key facts:
 
-- Install with `pip install pbidriver`. Needs Windows 10 or 11, Power BI Desktop (Store or installer build) and
-  Python 3.9+. Runs locally; nothing is published to the Power BI service.
+- Install with `pip install pbidriver`, or from npm with `npx pbidriver` / `npm install -g pbidriver` (runs the
+  same CLI through uv or Python). Needs Windows 10 or 11, Power BI Desktop (Store or installer build) and Python
+  3.9+ or uv. Runs locally; nothing is published to the Power BI service.
 - Two ways to connect: a report opened with `pbidriver launch` gets full control through Power BI Desktop's WebView2
   DevTools (Chrome DevTools Protocol, via Playwright). Any other open Power BI Desktop window still gets page and
   visual screenshots, PBIP reload and unsaved state through Microsoft's Desktop Bridge (Power BI Desktop June 2026+),
@@ -38,4 +39,5 @@ Key facts:
 
 - [Changelog](https://github.com/speak2jerome/pbidriver/blob/main/CHANGELOG.md)
 - [PyPI package](https://pypi.org/project/pbidriver/)
+- [npm package](https://www.npmjs.com/package/pbidriver)
 - [Releases](https://github.com/speak2jerome/pbidriver/releases)

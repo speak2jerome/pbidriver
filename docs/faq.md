@@ -57,6 +57,10 @@ Yes. `pbidriver dax "EVALUATE ..."` runs a query against the model of the open r
 
 Yes. `pbidriver launch` opens `.pbix`, `.pbit` and `.pbip` files, and `inventory` reads PBIR and legacy report layouts. After an agent edits a PBIP project's files, `pbidriver reload` makes Power BI Desktop pick up the changes without a restart.
 
+## Is there an npm package for Node.js?
+
+Yes. `npx pbidriver ...` or `npm install -g pbidriver` runs the same command-line tool from Node.js. It needs uv or Python 3.9+; with uv nothing else is set up. The npm package also has a JavaScript API: `require('pbidriver').run(['shot', '--page', 'Overview'])` resolves with the command's JSON result.
+
 ## Does it work on macOS or Linux?
 
 No. Power BI Desktop only runs on Windows, so pbidriver needs Windows 10 or 11.

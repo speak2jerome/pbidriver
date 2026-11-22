@@ -15,6 +15,8 @@ Everything runs locally against Power BI Desktop. There are no screen grabs and 
 pip install pbidriver
 ```
 
+Or with Node.js: `npx pbidriver ...` or `npm install -g pbidriver`. This runs the same tool and needs [uv](https://docs.astral.sh/uv/) or Python 3.9+.
+
 ```powershell
 pbidriver launch "C:\reports\Sales.pbix"
 pbidriver shot --page "Overview" --annotate     # PNG of the canvas, each visual labelled with its index

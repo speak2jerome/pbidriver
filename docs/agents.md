@@ -10,6 +10,8 @@ pbidriver is a plain command-line tool that prints JSON, so it works with any co
     pip install pbidriver
     ```
 
+    Node.js projects can use `npx pbidriver ...` instead (needs [uv](https://docs.astral.sh/uv/) or Python 3.9+), or call it from JavaScript with `require('pbidriver').run([...])`.
+
 2. Paste the instructions below into the file your agent reads on start:
 
     | Agent | File |
