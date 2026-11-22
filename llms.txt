@@ -1,39 +1,57 @@
 # pbidriver
 
-> pbidriver is an open-source (MIT) Python command-line tool, "WebDriver for Power BI Desktop", that lets AI agents
-> such as Claude Code, GitHub Copilot, OpenAI Codex and Cursor see and drive Microsoft Power BI Desktop on Windows:
-> pixel-exact screenshots of report pages, single visuals and the Table, Model, DAX query and TMDL views; the data
-> behind visuals; blocking dialogs; slicers, clicks, tooltips, menus, scrolling and bookmarks; DAX queries and model
-> metadata; and Performance Analyzer timings. Every command prints one JSON object.
+> pbidriver is an open-source (MIT) Python command-line tool and MCP server, "WebDriver for Power BI Desktop", that
+> lets AI agents such as Claude Code, GitHub Copilot, OpenAI Codex and Cursor build, see and drive Microsoft Power BI
+> Desktop reports on Windows: create PBIP projects, pages and visuals; pixel-exact screenshots of report pages,
+> single visuals and the Table, Model, DAX query and TMDL views; the data behind visuals; blocking dialogs; slicers,
+> clicks, tooltips, menus, scrolling and bookmarks; refresh, DAX queries and model metadata; and Performance Analyzer
+> timings. With Microsoft's Power BI Modeling MCP (which edits the semantic model) it is a complete kit for agents to
+> build Power BI reports end to end.
 
 Key facts:
 
 - Install with `pip install pbidriver`, or from npm with `npx pbidriver` / `npm install -g pbidriver` (runs the
   same CLI through uv or Python). Needs Windows 10 or 11, Power BI Desktop (Store or installer build) and Python
   3.9+ or uv. Runs locally; nothing is published to the Power BI service.
+- `pbidriver setup` configures MCP clients (Claude Code `.mcp.json`, VS Code `.vscode/mcp.json`, Cursor
+  `.cursor/mcp.json`, Codex `.codex/config.toml`) with both pbidriver (`pbidriver mcp`) and Microsoft's Power BI
+  Modeling MCP (`npx -y @microsoft/powerbi-modeling-mcp@latest --start`), and writes an AGENTS.md section and the
+  powerbi-builder agent skill. Claude Code plugin: `/plugin marketplace add speak2jerome/pbidriver`, then
+  `/plugin install pbidriver@pbidriver`.
+- MCP tools are the CLI commands with a `pbi_` prefix (pbi_new, pbi_launch, pbi_add_visual, pbi_shot, pbi_read,
+  pbi_dax, pbi_refresh, pbi_save, ...), plus `pbi_guide` (workflow, visual types and roles, Modeling MCP recipes,
+  PBIR format, troubleshooting). Screenshots are returned as image content.
+- Agent workflow: `pbi_new` (blank PBIP, opened) -> Modeling MCP connects to `localhost:<model_port>` and creates
+  tables, relationships and measures -> `pbi_refresh sync=true` -> `pbi_add_visual` per visual (fields checked
+  against the live model) -> verify with `pbi_shot`, `pbi_read`, `pbi_dax` -> `pbi_save`.
 - Two ways to connect: a report opened with `pbidriver launch` gets full control through Power BI Desktop's WebView2
   DevTools (Chrome DevTools Protocol, via Playwright). Any other open Power BI Desktop window still gets page and
   visual screenshots, PBIP reload and unsaved state through Microsoft's Desktop Bridge (Power BI Desktop June 2026+),
   plus DAX and model metadata through the local Analysis Services engine.
 - Reads chart values from each data point's bound `tooltipInfo`, and table and matrix cells through ARIA grid roles,
   scrolling virtualized grids.
-- Handles all three dialog kinds Power BI Desktop uses (in-app WebView2, native WinForms, legacy Internet Explorer),
-  reports them on every call as `alerts.blocked`, and answers them with `pbidriver dialog --click`.
-- Runs DAX through the ADOMD.NET client that ships with Power BI Desktop, so nothing extra is installed.
+- Handles the dialog kinds Power BI Desktop uses (in-app WebView2, legacy floating WebView2, native WinForms, legacy
+  Internet Explorer), reports them on every call as `alerts`, and answers them with `pbidriver dialog --click`.
 - Commands: launch, instances, status, pages, alerts, visuals, shot, read, inventory, model, dax, perf, slicer,
-  click, hover, menu, scroll, type, key, bookmarks, wait, dialog, reload, save, close.
-- Tested on Power BI Desktop 2.152 (March 2026) and 2.159 (November 2026), Microsoft Store builds.
-- Version 0.1.1, released 2026-11-22. Author: Jerome Eliezer (GitHub: speak2jerome). Licence: MIT.
+  click, hover, menu, scroll, type, key, bookmarks, wait, dialog, reload, save (--as), refresh (--sync), close, new,
+  layout, add-page, add-visual, remove-visual, mcp, setup, doctor.
+- Visual types for add-visual: card, cardVisual, columnChart, clusteredColumnChart, barChart, clusteredBarChart,
+  lineChart, areaChart, pieChart, donutChart, tableEx (table), pivotTable (matrix), slicer, textbox.
+- Tested on Power BI Desktop 2.152 (March 2026) and 2.159 (November 2026), Microsoft Store builds, with Power BI
+  Modeling MCP 0.4.0.
+- Version 0.2.0, released 2026-11-22. Author: Jerome Eliezer (GitHub: speak2jerome). Licence: MIT.
 - Not an ODBC driver or data connector: "driver" as in WebDriver.
 
 ## Docs
 
 - [Documentation site](https://speak2jerome.github.io/pbidriver/): overview and install
+- [Build reports with agents](https://speak2jerome.github.io/pbidriver/kit/): pbidriver + Power BI Modeling MCP, setup, workflow
 - [Use with AI agents](https://speak2jerome.github.io/pbidriver/agents/): setup for Claude Code, Copilot, Codex, Cursor, with recipes
 - [Command reference](https://speak2jerome.github.io/pbidriver/commands/): every command and option
 - [How it works](https://speak2jerome.github.io/pbidriver/how-it-works/): DevTools, Desktop Bridge, dialogs, data reading, security, limits
 - [FAQ](https://speak2jerome.github.io/pbidriver/faq/)
 - [README](https://github.com/speak2jerome/pbidriver/blob/main/README.md)
+- [powerbi-builder skill](https://github.com/speak2jerome/pbidriver/tree/main/pbidriver/skill/powerbi-builder)
 
 ## Optional
 

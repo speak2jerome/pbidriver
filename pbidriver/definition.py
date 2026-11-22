@@ -101,7 +101,7 @@ def _field_label(field: dict, sources: dict | None = None) -> str:
             name = f.get("Property") or f.get("Level") or f.get("Hierarchy")
             return f"{entity}.{name}" if entity else str(name)
     if "Aggregation" in field:
-        agg = {0: "Sum", 1: "Avg", 2: "Count", 3: "Min", 4: "Max", 5: "CountNonNull", 6: "Median"}.get(field["Aggregation"].get("Function"), "Agg")
+        agg = {0: "Sum", 1: "Avg", 2: "DistinctCount", 3: "Min", 4: "Max", 5: "Count", 6: "Median"}.get(field["Aggregation"].get("Function"), "Agg")
         return f"{agg}({_field_label(field['Aggregation'].get('Expression', {}), sources)})"
     return json.dumps(field)[:80]
 

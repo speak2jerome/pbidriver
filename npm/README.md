@@ -14,6 +14,8 @@ npx pbidriver dax "EVALUATE TOPN(5, Sales)"
 
 Every command prints one JSON object: `{"ok": true, ...}` or `{"ok": false, "error": "..."}`.
 
+**MCP server:** `npx -y pbidriver mcp` runs pbidriver as an MCP server over stdio: every command is a `pbi_*` tool, and screenshots come back as images. In an MCP client config on Windows: `{"command": "cmd", "args": ["/c", "npx", "-y", "pbidriver@latest", "mcp"]}`. `npx pbidriver setup` configures it, together with Microsoft's Power BI Modeling MCP, for Claude Code, VS Code, Cursor and Codex; see [Build reports with agents](https://speak2jerome.github.io/pbidriver/kit/).
+
 ## Requirements
 
 - Windows 10 or 11 with Power BI Desktop.

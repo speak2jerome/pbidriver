@@ -14,7 +14,11 @@ No. It works entirely against Power BI Desktop on your own Windows machine. Noth
 
 ## Does it work with Claude Code, GitHub Copilot, Codex or Cursor?
 
-Yes. pbidriver is a command-line tool that prints JSON, so any agent that can run shell commands can use it. Paste the [agent instructions](agents.md) into `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md` or a Cursor rule. No MCP server or plugin is needed.
+Yes. pbidriver has an MCP server (`pbidriver mcp`) whose tools return screenshots as images, and `pbidriver setup` configures it for Claude Code, VS Code (GitHub Copilot), Cursor and Codex in one step. Claude Code users can also install it as a plugin. Any agent that can run shell commands can use the CLI instead: paste the [agent instructions](agents.md) into `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md` or a Cursor rule.
+
+## Can an AI agent build a Power BI report from scratch?
+
+Yes, with pbidriver and Microsoft's Power BI Modeling MCP together. The agent creates a PBIP project (`pbi_new`), builds the model with the Modeling MCP (tables from CSV, Excel, SQL or DAX, relationships, measures), loads the data (`pbi_refresh sync=true`), adds pages and visuals (`pbi_add_visual`), checks the screenshots and every number against DAX, and saves. An end-to-end test of exactly this runs in about 100 seconds. See [Build reports with agents](kit.md).
 
 ## How is pbidriver different from Microsoft's Power BI Desktop Bridge?
 
@@ -31,7 +35,7 @@ It also works on Power BI Desktop builds older than the Bridge.
 
 ## How is it different from the Power BI Modeling MCP server?
 
-Microsoft's Power BI Modeling MCP server changes the semantic model: tables, measures and relationships. pbidriver covers the report side the agent can't otherwise reach: what the report looks like, what the visuals show, and how they react to slicers and clicks. They work well together.
+Microsoft's Power BI Modeling MCP server changes the semantic model: tables, measures and relationships. It can't create report pages or visuals, or see the report. pbidriver covers that side: it creates projects, pages and visuals, shows what the report looks like and what the visuals show, and how they react to slicers and clicks. `pbidriver setup` configures both servers, and pbidriver's skill and `pbi_guide` tool teach agents to use them together.
 
 ## Can it apply slicers, scroll tables and click visuals?
 
@@ -55,7 +59,7 @@ Yes. `pbidriver dax "EVALUATE ..."` runs a query against the model of the open r
 
 ## Does it work with PBIP and PBIR projects?
 
-Yes. `pbidriver launch` opens `.pbix`, `.pbit` and `.pbip` files, and `inventory` reads PBIR and legacy report layouts. After an agent edits a PBIP project's files, `pbidriver reload` makes Power BI Desktop pick up the changes without a restart.
+Yes. `pbidriver launch` opens `.pbix`, `.pbit` and `.pbip` files, and `inventory` reads PBIR and legacy report layouts. `pbidriver new` creates a PBIP project, `save --as` converts a `.pbix` into one, and `add-page`, `add-visual` and `remove-visual` edit its PBIR files. After an agent edits a PBIP project's files, `pbidriver reload --report-only` makes Power BI Desktop pick up the changes without a restart.
 
 ## Is there an npm package for Node.js?
 

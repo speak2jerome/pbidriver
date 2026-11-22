@@ -1,7 +1,7 @@
 {
   "name": "pbidriver",
-  "version": "0.1.1",
-  "description": "WebDriver for Power BI Desktop: let AI agents see and drive it (screenshots, visual data, dialogs, slicers, DAX, Performance Analyzer). Runs the pbidriver CLI from Node.",
+  "version": "0.2.0",
+  "description": "WebDriver for Power BI Desktop: let AI agents build, see and drive Power BI reports (PBIP authoring, screenshots, visual data, dialogs, slicers, DAX). CLI and MCP server, run from Node.",
   "keywords": [
     "power-bi",
     "powerbi",
@@ -18,7 +18,10 @@
     "pbip",
     "webview2",
     "chrome-devtools-protocol",
-    "cli"
+    "cli",
+    "mcp",
+    "mcp-server",
+    "pbir"
   ],
   "homepage": "https://speak2jerome.github.io/pbidriver/",
   "bugs": {

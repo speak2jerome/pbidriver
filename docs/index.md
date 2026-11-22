@@ -11,6 +11,8 @@
 
 Everything runs locally against Power BI Desktop. There are no screen grabs and nothing is published to the Power BI service.
 
+**New in 0.2: build reports, not just inspect them.** Together with Microsoft's Power BI Modeling MCP, pbidriver is a complete kit for agents to build Power BI reports: create a PBIP project, model the data, add pages and visuals, and check every number on screen. It ships as an MCP server (`pbidriver mcp`), a one-command project setup (`pbidriver setup`), a Claude Code plugin and an agent skill. See [Build reports with agents](kit.md).
+
 ```powershell
 pip install pbidriver
 ```
@@ -38,10 +40,11 @@ AI agents can already write DAX and edit PBIP report files, but they can't see t
 |---|---|
 | **See** | Pixel-exact PNGs of the canvas, one visual, every visual, the full UI, or the Table, Model, DAX query and TMDL views. Works when the canvas is bigger than the window, and when the window is minimized or behind other windows. |
 | **Read** | The values behind visuals, exactly as Power BI formats them: chart data points, cards, whole tables and matrices, and slicer options with their selection. |
-| **Never get stuck** | Blocking dialogs of all three kinds Power BI uses (in-app, native Windows and legacy Internet Explorer) are reported on every call and answered with `dialog --click`. Input is refused while a modal is open. Broken visuals are reported too. |
+| **Never get stuck** | Blocking dialogs of every kind Power BI uses (in-app, floating WebView2, native Windows and legacy Internet Explorer) are reported on every call and answered with `dialog --click`. Input is refused while a modal is open. Broken visuals are reported too. |
 | **Interact** | Real mouse and keyboard input: slicers, clicks, scrolling (including sideways in wide tables), typing, keys, tooltips, context and "More options" menus, and bookmarks. |
 | **Understand** | Every page, visual, field, filter and bookmark from the report file, and the model's tables, columns, measures (with DAX) and relationships. |
 | **Measure** | Performance Analyzer timings per visual (DAX query, visual display, other), optionally with each visual's query. |
+| **Build** | Create PBIP projects, add pages and visuals (fields checked against the live model), convert a .pbix to PBIP, refresh data and report source errors. |
 | **Close the loop** | Reload a PBIP after edits on disk, save, and close, answering the save prompt. |
 
 ## Works with any open Power BI Desktop
@@ -63,6 +66,7 @@ AI agents can already write DAX and edit PBIP report files, but they can't see t
 
 ## Next steps
 
+- [Build reports with agents](kit.md): pbidriver + the Power BI Modeling MCP, set up in one command.
 - [Use pbidriver with AI agents](agents.md): set up Claude Code, GitHub Copilot, Codex or Cursor, with ready-made recipes.
 - [Command reference](commands.md): every command and option.
 - [How it works](how-it-works.md): DevTools, the Desktop Bridge, dialogs, data reading, security and limits.

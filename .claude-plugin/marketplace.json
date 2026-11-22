@@ -1,0 +1,17 @@
+{
+  "name": "pbidriver",
+  "description": "Build Power BI reports with AI agents: pbidriver + Microsoft's Power BI Modeling MCP + the powerbi-builder skill.",
+  "owner": {
+    "name": "Jerome Eliezer",
+    "url": "https://github.com/speak2jerome"
+  },
+  "plugins": [
+    {
+      "name": "pbidriver",
+      "source": "./plugins/pbidriver",
+      "description": "Agent-driven Power BI building kit: pbidriver MCP server, Power BI Modeling MCP, and the powerbi-builder skill.",
+      "category": "data",
+      "keywords": ["power-bi", "powerbi", "pbip", "dax", "mcp"]
+    }
+  ]
+}

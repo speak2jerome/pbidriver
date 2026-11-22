@@ -14,6 +14,7 @@ node_modules/
 
 # Captures written by the tool
 pbidriver_shots/
+pbidriver_e2e/
 
 # Docs build output (docs/llms.txt is copied from the root llms.txt at build time)
 site/

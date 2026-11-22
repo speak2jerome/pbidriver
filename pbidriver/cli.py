@@ -196,6 +196,19 @@ WEB_ALERTS_JS = r"""
 }
 """
 
+# A legacy floating dialog page (e.g. FloatingDialog/KoBrowserDialog.htm: the Refresh progress/error
+# dialog): the whole page is the dialog.
+FLOATING_JS = r"""
+() => {
+  const vis = (el) => { const r = el.getBoundingClientRect(); return r.width > 2 && r.height > 2; };
+  const clean = (s) => (s || '').replace(/\s+/g, ' ').trim();
+  const text = clean(document.body ? document.body.innerText : '').slice(0, 800);
+  const buttons = [...document.querySelectorAll('button, [role=button], input[type=button], input[type=submit], a.button')]
+    .filter(vis).map(b => clean(b.innerText || b.value || b.getAttribute('aria-label'))).filter(Boolean);
+  return { text, buttons: [...new Set(buttons)] };
+}
+"""
+
 # Candidate elements to act on, matched by aria-label or own text. scope: 'page' | 'visual' | 'dialog'.
 FIND_JS = r"""
 ([scope, index, text, exact]) => {
@@ -297,7 +310,10 @@ READ_JS = r"""
       if (!cards.some(x => x[0] === c[0] && x[1] === c[1])) cards.push(c);
       continue;
     }
-    for (const k of ['data', 'dataPoints', 'values', 'points']) if (Array.isArray(d[k])) d[k].forEach(take);
+    for (const k of ['data', 'dataPoints', 'values', 'points']) {
+      if (Array.isArray(d[k])) d[k].forEach(take);
+      else if (d[k] && typeof d[k] === 'object') take(d[k]);  // pie/donut slices wrap the point: d.data
+    }
     if (Array.isArray(d)) d.forEach(take);
   }
   return { points, cards, grid: !!v.querySelector('[role=grid], [role=treegrid]'), iframe: !!v.querySelector('iframe'),
@@ -518,10 +534,31 @@ def visible_window(port: int | None = None, pid: int | None = None):
 class Session:
     """The Power BI WebView2 pages of one instance, keyed by view name."""
 
-    def __init__(self, port: int, pages: dict):
+    def __init__(self, port: int, pages: dict, browser=None):
         self.port = port
         self.pages = pages
+        self.browser = browser
         self._cdp: dict[int, object] = {}
+
+    def floating_pages(self) -> dict:
+        """Legacy floating dialog pages (any page that isn't a view or the dialog host) that are on screen.
+        Power BI hides a closed floating dialog instead of destroying it, so its page (and its old text)
+        lingers; only count them while a WebView2-hosting dialog window is visible."""
+        if not any(w["kind"] == "webview2" for w in native_windows(self.port)["windows"]):
+            return {}
+        self.refresh_pages()
+        known = set(VIEWS.values()) | {DIALOG_HOST}
+        return {k: p for k, p in self.pages.items() if k not in known and not p.is_closed()}
+
+    def refresh_pages(self) -> None:
+        """Pick up pages created since connecting (e.g. the dialog host page of a new error dialog)."""
+        if self.browser is None:
+            return
+        for ctx in self.browser.contexts:
+            for pg in ctx.pages:
+                key = pg.url.split("?")[0].rsplit("/", 1)[-1]
+                if key not in self.pages or self.pages[key].is_closed():
+                    self.pages[key] = pg
 
     def view(self, name: str):
         page = self.pages.get(VIEWS.get(name, name))
@@ -559,7 +596,7 @@ def pbi_session(port: int, wait: float = 15):
                 pages.setdefault(pg.url.split("?")[0].rsplit("/", 1)[-1], pg)
         if VIEWS["report"] not in pages:
             raise DriverError("Connected, but no report view page was found.")
-        yield Session(port, pages)
+        yield Session(port, pages, browser)
 
 
 def settle(page, timeout_s: float, quiet_ms: int = 700) -> dict:
@@ -786,9 +823,16 @@ def collect_alerts(s: Session, views: tuple[str, ...] = ("report",), visual_erro
         out["blocked"] = True
     if nat["windows"]:
         out["windows"] = nat["windows"]
+    for key, page in s.floating_pages().items():
+        try:
+            found = page.evaluate(FLOATING_JS)
+        except Exception:  # noqa: BLE001  closing while we read it
+            continue
+        if found["text"]:
+            out.setdefault("dialogs", []).append({"view": f"floating:{key}", **found})
     for name in (*views, "dialoghost"):
         page = s.pages.get(DIALOG_HOST if name == "dialoghost" else VIEWS[name])
-        if page is None:
+        if page is None or page.is_closed():
             continue
         found = page.evaluate(WEB_ALERTS_JS)
         for d in found["dialogs"]:
@@ -1033,10 +1077,18 @@ def cmd_launch(a) -> dict:
         time.sleep(1)
     with pbi_session(a.port) as s:
         rp = s.report
-        try:
-            rp.wait_for_selector(PAGE_TAB, state="attached", timeout=remaining() * 1000)
-        except Exception:  # noqa: BLE001  a dialog may be holding the load; report it below
-            pass
+        # Wait for the page tabs, but stop early when Power BI shows an error or a prompt instead
+        # (e.g. "Something went wrong / Failed to load the report"): an agent must see that at once.
+        deadline = time.time() + remaining()
+        while time.time() < deadline:
+            if rp.query_selector(PAGE_TAB):
+                break
+            found = collect_alerts(s, visual_errors=False)
+            if found.get("blocked") or found.get("dialogs"):
+                time.sleep(2)  # give a slow load a moment before reporting
+                if not rp.query_selector(PAGE_TAB):
+                    break
+            time.sleep(1)
         settle(rp, a.settle)
         result = {"port": a.port, "file": str(file), "loaded": bool(rp.evaluate(PAGES_JS)),
                   "seconds": round(time.time() - t0, 1), "canvas": rp.evaluate(CANVAS_JS), "pages": rp.evaluate(PAGES_JS)}
@@ -1329,9 +1381,30 @@ def cmd_dialog(a) -> dict:
     with visible_window(a.port), pbi_session(a.port) as s:
         nat = native_windows(a.port)
         # Topmost first: a native/legacy modal, then the WebView2 dialog host, then the chosen view.
-        if nat["windows"]:
-            return _native_dialog(a, nat, s)
+        # (A "webview2" window is the host of an in-app dialog; that one is answered through DevTools.)
+        native = [w for w in nat["windows"] if w["kind"] in ("native", "legacy-ie")]
+        if native:
+            return _native_dialog(a, {**nat, "windows": native}, s)
+        s.refresh_pages()
 
+        for key, page in s.floating_pages().items():  # legacy floating dialogs, e.g. Refresh
+            d = page.evaluate(FLOATING_JS)
+            if not d["text"]:
+                continue
+            name = f"floating:{key}"
+            if a.click:
+                hits = [h for h in (page.evaluate(FIND_JS, ["page", 0, a.click, False]) or [])
+                        if h["tag"] in ("button", "input", "a", "span", "div") or h["role"] == "button"]
+                if not hits:
+                    raise DriverError(f"No button {a.click!r} in dialog. Buttons: {d['buttons']}")
+                page.mouse.click(hits[0]["x"], hits[0]["y"])
+                time.sleep(1)
+                return with_alerts({"dialog_view": name, "pressed": hits[0]["label"]}, s, (a.view,))
+            if a.shot:
+                path = as_png(Path(a.out).expanduser().resolve() if a.out else default_out("dialog-floating"))
+                capture_page(page, s.cdp(page), 1, path)
+                return {"dialog_view": name, "file": str(path), "size": png_size(path)}
+            return {"blocked": nat["blocked"], "dialog_view": name, "dialog": d}
         for name in ("dialoghost", a.view):
             page = s.pages.get(DIALOG_HOST if name == "dialoghost" else VIEWS[name])
             if page is None:
@@ -1994,9 +2067,16 @@ def cmd_dax(a) -> dict:
 def cmd_model(a) -> dict:
     pid = resolve_pid(a)
     m = bridge.model_info(pid)
+    empty = all(isinstance(v, dict) and "at least one table" in str(v.get("error")) for v in m.values())
+    if empty:  # a new model: the engine refuses DAX until a table exists
+        m = {k: [] for k in m}
     if a.part:
         m = {a.part: m[a.part]}
-    return {"pid": pid, "counts": {k: len(v) if isinstance(v, list) else None for k, v in m.items()}, **m}
+    out = {"pid": pid, "counts": {k: len(v) if isinstance(v, list) else None for k, v in m.items()}, **m}
+    if empty:
+        out["note"] = ("The model has no tables yet. Create them with the Power BI Modeling MCP "
+                       "(table_operations Create), then refresh with `pbidriver refresh`.")
+    return out
 
 
 def cmd_reload(a) -> dict:
@@ -2018,11 +2098,171 @@ def cmd_reload(a) -> dict:
     return result
 
 
+def _wm_text(hwnd) -> str:
+    import ctypes
+
+    import win32con
+    import win32gui
+
+    n = win32gui.SendMessage(hwnd, win32con.WM_GETTEXTLENGTH, 0, 0)
+    buf = ctypes.create_unicode_buffer(n + 1)
+    ctypes.windll.user32.SendMessageW(hwnd, win32con.WM_GETTEXT, n + 1, buf)
+    return buf.value
+
+
+def _file_dialog(hwnd) -> dict:
+    """Controls of a Windows Save As dialog: file name box, type combo, Save button, current folder."""
+    import win32gui
+
+    kids = _children(hwnd)
+    cls = {k: win32gui.GetClassName(k) for k in kids}
+    edit = next((k for k in kids if cls[k] == "Edit" and win32gui.GetDlgCtrlID(k) == 1001), None)
+    combos = [k for k in kids if cls[k] == "ComboBox" and win32gui.IsWindowVisible(k)]
+    type_combo = next((c for c in combos if not any(win32gui.GetClassName(x) == "Edit" for x in _children(c))), None)
+    save = next((k for k in kids if cls[k] == "Button" and win32gui.GetDlgCtrlID(k) == 1), None)
+    address = next((win32gui.GetWindowText(k) for k in kids if cls[k] == "ToolbarWindow32"
+                    and win32gui.GetWindowText(k).startswith("Address: ")), "")
+    if not (edit and type_combo and save):
+        raise DriverError("This Save As dialog doesn't have the expected controls.")
+    return {"edit": edit, "type": type_combo, "save": save, "folder": address[len("Address: "):]}
+
+
+def _select_file_type(combo, ext: str) -> str:
+    """Pick the 'Save as type' entry for an extension. The dialog only notices a change made the way a
+    dropdown makes it: open, select, notify (SELCHANGE + SELENDOK), close."""
+    import ctypes
+
+    import win32api
+    import win32con
+    import win32gui
+
+    labels = []
+    for i in range(win32gui.SendMessage(combo, win32con.CB_GETCOUNT, 0, 0)):
+        buf = ctypes.create_unicode_buffer(win32gui.SendMessage(combo, win32con.CB_GETLBTEXTLEN, i, 0) + 1)
+        ctypes.windll.user32.SendMessageW(combo, win32con.CB_GETLBTEXT, i, buf)
+        labels.append(buf.value)
+    index = next((i for i, label in enumerate(labels) if f"*{ext})" in label.lower()), None)
+    if index is None:
+        raise DriverError(f"Power BI can't save as {ext}. Types offered: {labels}")
+    parent, cid = win32gui.GetParent(combo), win32gui.GetDlgCtrlID(combo)
+    win32gui.SendMessage(combo, win32con.CB_SHOWDROPDOWN, 1, 0)
+    win32gui.SendMessage(combo, win32con.CB_SETCURSEL, index, 0)
+    win32gui.SendMessage(parent, win32con.WM_COMMAND, win32api.MAKELONG(cid, win32con.CBN_SELCHANGE), combo)
+    win32gui.SendMessage(parent, win32con.WM_COMMAND, win32api.MAKELONG(cid, win32con.CBN_SELENDOK), combo)
+    win32gui.SendMessage(combo, win32con.CB_SHOWDROPDOWN, 0, 0)
+    return labels[index]
+
+
+def _save_as(s: Session, a, pid: int) -> dict:
+    """File > Save as > Browse this device, then drive the Windows dialog: folder, type, name, Save."""
+    import win32con
+    import win32gui
+
+    target = Path(a.as_path).expanduser().resolve()
+    ext = target.suffix.lower()
+    if ext not in (".pbix", ".pbip", ".pbit"):
+        raise DriverError("--as needs a .pbix, .pbip or .pbit path.")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if target.exists() and not a.overwrite:
+        raise DriverError(f"{target} already exists; pass --overwrite to replace it.")
+    rp = s.report
+    for label in ("File", "Save as", "Browse this device"):
+        hits = rp.evaluate(FIND_JS, ["page", 0, label, True]) or []
+        if not hits:
+            _close_backstage(rp)
+            raise DriverError(f"Couldn't find {label!r} in Power BI's File menu (an English UI is expected).")
+        rp.mouse.click(hits[0]["x"], hits[0]["y"])
+        time.sleep(1.5)
+    dlg = None
+    for _ in range(40):
+        dlg = next((w for w in native_windows(pid=pid)["windows"] if w["title"] == "Save As"), None)
+        if dlg:
+            break
+        time.sleep(0.25)
+    if not dlg:
+        raise DriverError("The Save As dialog didn't open.")
+    hwnd = dlg["hwnd"]
+
+    def cancel(msg: str):
+        c = _file_dialog(hwnd)
+        win32gui.PostMessage(next(k for k in _children(hwnd) if win32gui.GetDlgCtrlID(k) == 2
+                                  and win32gui.GetClassName(k) == "Button"), win32con.BM_CLICK, 0, 0)
+        raise DriverError(msg + f" (dialog folder: {c['folder']!r})")
+
+    # 1. Go to the folder: a folder path typed as the name makes Save navigate into it.
+    c = _file_dialog(hwnd)
+    win32gui.SendMessage(c["edit"], win32con.WM_SETTEXT, 0, str(target.parent))
+    win32gui.PostMessage(c["save"], win32con.BM_CLICK, 0, 0)
+    def at_target(folder: str) -> bool:
+        if "\\" in folder:
+            return folder.rstrip("\\").lower() == str(target.parent).lower()
+        return bool(folder) and folder.lower() == target.parent.name.lower()  # known folders show their name
+
+    for _ in range(40):
+        time.sleep(0.25)
+        c = _file_dialog(hwnd)
+        if at_target(c["folder"]):
+            break
+    else:
+        cancel("The Save As dialog didn't open the target folder.")
+    # 2. Type, then name (the type change rewrites the name box, so the name goes last). The dialog keeps
+    #    its own copy of the name and only takes the box's text when told it was edited (CBN_EDITCHANGE).
+    import win32api
+
+    chosen = _select_file_type(c["type"], ext)
+    time.sleep(0.4)
+    name_combo = win32gui.GetParent(c["edit"])
+    win32gui.SendMessage(c["edit"], win32con.WM_SETTEXT, 0, target.name)
+    for code in (win32con.CBN_EDITUPDATE, win32con.CBN_EDITCHANGE):
+        win32gui.SendMessage(win32gui.GetParent(name_combo), win32con.WM_COMMAND,
+                             win32api.MAKELONG(win32gui.GetDlgCtrlID(name_combo), code), name_combo)
+    time.sleep(0.3)
+    if _wm_text(c["edit"]) != target.name:
+        cancel("Couldn't set the file name.")
+    before = (bridge.bridge_state(pid) if bridge.instance(pid)["bridge"] else {}).get("file")
+    win32gui.PostMessage(c["save"], win32con.BM_CLICK, 0, 0)
+
+    # 3. Overwrite prompt, then wait for Power BI to report the new file.
+    t0 = time.time()
+    while time.time() - t0 < a.timeout:
+        time.sleep(1)
+        wins = native_windows(pid=pid)["windows"]
+        confirm = next((w for w in wins if w["title"] == "Confirm Save As"), None)
+        if confirm:
+            click_native_button(confirm["hwnd"], "Yes" if a.overwrite else "No")
+            if not a.overwrite:
+                time.sleep(0.5)
+                cancel(f"{target} already exists.")
+            continue
+        if any(w["title"] == "Save As" for w in wins):
+            continue
+        state = bridge.bridge_state(pid) if bridge.instance(pid)["bridge"] else {}
+        now = state.get("file")
+        if now and Path(now).resolve() == target:
+            return {"saved_as": str(target), "type": chosen, "seconds": round(time.time() - t0, 1),
+                    "files": sorted(p.name for p in target.parent.iterdir())[:20]}
+        if now and now != before:
+            return {"saved_as": now, "type": chosen, "warning": f"Power BI saved to {now}, not {target}."}
+        if not wins and not state:
+            break
+    return {"saved_as": None, "type": chosen, "note": f"Power BI didn't report {target} as the open file; check alerts."}
+
+
+def _close_backstage(rp) -> None:
+    hits = rp.evaluate(FIND_JS, ["page", 0, "Back", True]) or []
+    if hits:
+        rp.mouse.click(hits[0]["x"], hits[0]["y"])
+
+
 def cmd_save(a) -> dict:
     with visible_window(a.port), pbi_session(a.port) as s:
         guard_not_blocked(s, a.force)
         win = pbi_window(a.port)
         pid = win[2] if win else None
+        if a.as_path:
+            if not pid:
+                raise DriverError("Couldn't find the Power BI window.")
+            return with_alerts(_save_as(s, a, pid), s)
         has_bridge = bool(pid and bridge.instance(pid)["bridge"])
         before = bridge.bridge_state(pid)["unsaved"] if has_bridge else None
         # Ctrl+S is a host accelerator that DevTools key events never reach; the title bar's Save
@@ -2052,12 +2292,240 @@ def cmd_save(a) -> dict:
         return with_alerts(result, s)
 
 
+EMPTY_TABLES_BANNER = "incomplete or no data"
+
+
+def _sync_model(a) -> dict:
+    """Save, then reload the whole PBIP from disk: Power BI's own refresh only knows the queries it has read
+    from the project, so tables added through the Modeling MCP (TOM) are skipped until it re-reads them."""
+    pid = resolve_pid(a)
+    file = (bridge.bridge_state(pid).get("file") or "") if bridge.instance(pid)["bridge"] else ""
+    if not file.lower().endswith(".pbip"):
+        raise DriverError("--sync needs a PBIP project open (it saves and reloads it). Convert with "
+                          "`pbidriver save --as <file.pbip>`.")
+    saved = cmd_save(argparse.Namespace(**{**vars(a), "as_path": None, "overwrite": False, "timeout": 120}))
+    reloaded = cmd_reload(argparse.Namespace(**{**vars(a), "report_only": False}))
+    return {"saved": bool(saved.get("saved")), "reloaded": bool(reloaded.get("reloaded"))}
+
+
+def cmd_refresh(a) -> dict:
+    """Home > Refresh: reload every table's data, then wait until Power BI's refresh dialog is gone."""
+    synced = _sync_model(a) if getattr(a, "sync", False) else None
+    with visible_window(a.port), pbi_session(a.port) as s:
+        guard_not_blocked(s, a.force)
+        rp = s.report
+        with ribbon_restored(rp):
+            tab = next((t for t in _ribbon(rp)["tabs"] if t["name"] == "Home"), None)
+            if tab and not tab["selected"]:
+                rp.mouse.click(tab["x"], tab["y"])
+                time.sleep(0.6)
+            btn = rp.evaluate("""() => { const b = [...document.querySelectorAll('button[aria-label="Refresh"]')]
+                .map(e => e.getBoundingClientRect()).find(r => r.width > 0 && r.top < 200);
+                return b ? {x: b.left + b.width / 2, y: b.top + b.height / 2} : null; }""")
+            if not btn:
+                raise DriverError("Couldn't find the Refresh button on the Home ribbon.")
+            rp.mouse.click(btn["x"], btn["y"])
+            t0, quiet = time.time(), 0
+            seen_progress = False
+            error_re = re.compile(r"error|couldn't|could not|failed|blocked", re.I)
+            while time.time() - t0 < a.timeout:
+                time.sleep(1)
+                alerts = collect_alerts(s, visual_errors=False)
+                dialogs = alerts.get("dialogs", [])
+                errors = [d for d in dialogs if error_re.search(d.get("text") or "")]
+                if errors:
+                    return with_alerts({"refreshed": False, "seconds": round(time.time() - t0, 1),
+                                        "error": errors[0]["text"][:600],
+                                        "next": "Fix the source, then `pbidriver dialog --click Close` and retry."}, s)
+                busy = bool(alerts.get("blocked")) or any(re.search(r"refresh|load", d.get("text") or "", re.I)
+                                                          for d in dialogs)
+                seen_progress = seen_progress or busy
+                quiet = 0 if busy else quiet + 1
+                if quiet >= 3 and (seen_progress or time.time() - t0 > 6):
+                    break
+            else:
+                return with_alerts({"refreshed": False, "seconds": round(time.time() - t0, 1),
+                                    "error": f"Still refreshing after {a.timeout}s."}, s)
+        settle(rp, a.settle)
+        result: dict = {"refreshed": True, "seconds": round(time.time() - t0, 1)}
+        banners = collect_alerts(s, visual_errors=False).get("banners", [])
+        if any(EMPTY_TABLES_BANNER in b["text"] for b in banners):
+            result.update(refreshed=False, error="Power BI's refresh finished but some tables are still empty. "
+                          "Tables created or changed through the Power BI Modeling MCP are only part of Power BI's "
+                          "own refresh after it re-reads the model.",
+                          next="pbidriver refresh --sync  (saves, reloads the project from disk, refreshes, saves)")
+        result = with_alerts(result, s)
+    if synced:
+        # Save now: a report reload (add-visual --reload, reload --report-only) makes Power BI forget that the
+        # data changed, and a later save would then keep the old (empty) data cache.
+        if result["refreshed"]:
+            synced["saved_after"] = bool(cmd_save(argparse.Namespace(
+                **{**vars(a), "as_path": None, "overwrite": False, "timeout": 120})).get("saved"))
+        result["synced"] = synced
+    elif result["refreshed"] and (report_file(a.port) or "").lower().endswith(".pbip"):
+        result["next"] = ("pbidriver save, before any report reload: a reload makes Power BI forget the data "
+                          "changed, and the project would keep its old data.")
+    return result
+
+
+# --------------------------------------------------------------------------- project authoring (PBIR)
+
+def _project_report(a):
+    """The PBIR report folder to edit: --project, else the .pbip open in Power BI."""
+    from pbidriver import project
+
+    if getattr(a, "project", None):
+        return project.report_dir(a.project)
+    try:
+        pid = resolve_pid(a)
+        info = bridge.instance(pid)
+        file = (bridge.bridge_state(pid)["file"] if info["bridge"] else None) or info["file"]
+    except (DriverError, bridge.BridgeError):
+        file = None
+    if not file or not file.lower().endswith(".pbip"):
+        raise DriverError("No PBIP project is open in Power BI. Pass --project <file.pbip>, open one with "
+                          "`pbidriver launch`, or convert a .pbix with `pbidriver save --as <file.pbip>`.")
+    return project.report_dir(file)
+
+
+def _model_fields(a, rep) -> tuple[dict, str]:
+    """Tables, columns and measures to check field names against: the live model if Power BI has this
+    project open (includes unsaved changes, e.g. from the Modeling MCP), else the TMDL files."""
+    from pbidriver import project
+
+    try:
+        pid = resolve_pid(a)
+        info = bridge.instance(pid)
+        file = (bridge.bridge_state(pid)["file"] if info["bridge"] else None) or info["file"] or ""
+        if info["model_port"] and file.lower().endswith(".pbip") and project.report_dir(file) == rep:
+            return project.model_fields_from_info(bridge.model_info(pid)), "live model"
+    except (DriverError, bridge.BridgeError, project.ProjectError):
+        pass
+    sem = project.model_dir(rep)
+    if sem and (sem / "definition").is_dir():
+        return project.model_fields_from_tmdl(sem / "definition"), "TMDL files"
+    return {}, "none"
+
+
+def _after_edit(a, result: dict, page_name: str | None) -> dict:
+    """--reload / --shot: have Power BI pick up the edited files, then capture the page."""
+    if not (getattr(a, "reload", False) or getattr(a, "shot", False)):
+        result["next"] = "Run `pbidriver reload --report-only` to see the change in Power BI."
+        return result
+    pid = resolve_pid(a)
+    with visible_window(pid=pid):
+        bridge.bridge_reload(pid, model=False)
+    result["reloaded"] = True
+    port = bridge.instance(pid)["devtools_port"]
+    if getattr(a, "shot", False):
+        if port and _http_json(port, "/json/version"):
+            with visible_window(port), pbi_session(port, wait=60) as s:
+                s.report.wait_for_selector(PAGE_TAB, state="attached", timeout=60000)
+                settle(s.report, a.settle)
+                page = goto_page(s.report, page_name, a.settle)
+                s.report.mouse.move(1, 1)
+                settle(s.report, a.settle, quiet_ms=400)
+                path = as_png(default_out(page["name"]))
+                with fit_canvas(s.report, s.cdp(s.report), a.settle):
+                    capture_target(s.report, s.cdp(s.report), "canvas", 0, 1, path)
+                    data = visual_list(s.report, 80)
+                    result["legend"] = annotate(path, data["visuals"], data["canvas"])
+                result["shot"] = {"file": str(path), "size": png_size(path)}
+                return with_alerts(result, s)
+        a.page, a.visual, a.all_visuals, a.full, a.bridge, a.view, a.out, a.scale = page_name, None, False, False, True, "report", None, 1
+        result["shot"] = cmd_shot_bridge(a)
+    return result
+
+
+def cmd_new(a) -> dict:
+    from pbidriver import project
+
+    if a.open and _http_json(a.port, "/json/version"):  # check before writing anything, so a retry can succeed
+        raise DriverError(f"Port {a.port} already has a Power BI window with DevTools. Pass another --port "
+                          "(each window needs its own), or close that one first.")
+    out = project.new_project(a.folder, a.name, page=a.page_name, width=a.width, height=a.height)
+    if a.open:
+        a.file = out["pbip"]
+        out["launch"] = cmd_launch(a)
+        inst = next((i for i in bridge.instances() if i.get("devtools_port") == a.port), {})
+        if inst.get("model_port"):
+            out["model_port"] = inst["model_port"]
+            out["next"] = (f"Build the model with the Power BI Modeling MCP: connection_operations Connect with "
+                           f"dataSource localhost:{inst['model_port']}; then `pbidriver refresh --sync` and add "
+                           f"visuals with `pbidriver add-visual`.")
+    else:
+        out["next"] = f'pbidriver launch "{out["pbip"]}"'
+    return out
+
+
+def cmd_layout(a) -> dict:
+    from pbidriver import project
+
+    rep = _project_report(a)
+    pages = project.list_pages(rep)
+    if a.page is not None or len(pages) == 1:
+        page = project.find_page(rep, a.page)
+        return {"report": str(rep), "page": page, "visuals": project.list_visuals(rep, page["id"])}
+    return {"report": str(rep), "pages": pages}
+
+
+def cmd_add_page(a) -> dict:
+    from pbidriver import project
+
+    rep = _project_report(a)
+    page = project.add_page(rep, a.name, a.width, a.height)
+    return _after_edit(a, {"report": str(rep), "added_page": page}, page["name"])
+
+
+def cmd_add_visual(a) -> dict:
+    from pbidriver import project
+
+    rep = _project_report(a)
+    fields, source = _model_fields(a, rep)
+    spec = project.VISUALS.get(a.type)
+    if spec is None:
+        raise DriverError(f"Unsupported visual type {a.type!r}. Supported: {', '.join(project.VISUALS)}")
+    roles: dict[str, list[str]] = {}
+    for item in a.field or []:
+        role, sep, value = item.partition("=")
+        if sep and role.strip() in {r for r, _ in spec["roles"]}:
+            roles.setdefault(role.strip(), []).append(value.strip())
+            continue
+        # No role given: the first empty role that takes this kind of field, else the last one that does.
+        kind = project.parse_field(item, fields)["kind"]
+        kind = "measure" if kind == "aggregate" else kind
+        fitting = [r for r, k in spec["roles"] if k in (kind, "any")]
+        if not fitting:
+            raise DriverError(f"{a.type} has no role for {item!r}. Roles: {[r for r, _ in spec['roles']]}")
+        role = next((r for r in fitting if r not in roles), fitting[-1])
+        roles.setdefault(role, []).append(item)
+    page = project.find_page(rep, a.page)
+    w = a.width or (page["width"] or 1280) // 3
+    h = a.height or (page["height"] or 720) // 3
+    out = project.add_visual(rep, page["id"], a.type, roles, a.x, a.y, w, h, title=a.title, text=a.text,
+                             slicer_mode=a.mode, fields=fields or None)
+    out["fields_checked_against"] = source
+    return _after_edit(a, out, page["name"])
+
+
+def cmd_remove_visual(a) -> dict:
+    from pbidriver import project
+
+    rep = _project_report(a)
+    out = project.remove_visual(rep, a.page, a.id)
+    return _after_edit(a, out, out["page"])
+
+
 def _web_dialog(port: int | None) -> dict | None:
     """The topmost in-app (WebView2) dialog of a DevTools instance, if any."""
     if not port or not _http_json(port, "/json/version"):
         return None
     try:
         with pbi_session(port, wait=2) as s:
+            for key, page in s.floating_pages().items():
+                found = page.evaluate(FLOATING_JS)
+                if found["text"]:
+                    return {"kind": "in-app", "view": f"floating:{key}", **found}
             for name in ("dialoghost", "report"):
                 page = s.pages.get(DIALOG_HOST if name == "dialoghost" else VIEWS[name])
                 found = page.evaluate(WEB_ALERTS_JS)["dialogs"] if page else []
@@ -2070,9 +2538,14 @@ def _web_dialog(port: int | None) -> dict | None:
 
 def _press_web_dialog(port: int, view: str, label: str) -> str:
     with pbi_session(port, wait=2) as s:
-        page = s.pages.get(DIALOG_HOST if view == "dialoghost" else VIEWS[view])
-        hits = [h for h in (page.evaluate(FIND_JS, ["dialog", 0, label, False]) or [])
-                if h["tag"] in ("button", "span", "div") or h["role"] == "button"]
+        if view.startswith("floating:"):
+            page, scope = s.floating_pages().get(view.split(":", 1)[1]), "page"
+        else:
+            page, scope = s.pages.get(DIALOG_HOST if view == "dialoghost" else VIEWS[view]), "dialog"
+        if page is None:
+            raise DriverError("The dialog is gone.")
+        hits = [h for h in (page.evaluate(FIND_JS, [scope, 0, label, False]) or [])
+                if h["tag"] in ("button", "input", "a", "span", "div") or h["role"] == "button"]
         if not hits:
             raise DriverError(f"No button {label!r} in the dialog.")
         page.mouse.click(hits[0]["x"], hits[0]["y"])
@@ -2092,30 +2565,38 @@ def cmd_close(a) -> dict:
     want = "Don't save" if a.discard else ("Save" if a.save else None)
     if win32gui.IsWindowEnabled(win[0]):  # disabled = a prompt (e.g. from an earlier close) is already up
         win32gui.PostMessage(win[0], win32con.WM_CLOSE, 0, 0)
-    answered, t0 = None, time.time()
+    answered: list[str] = []
+    dismissed: list[str] = []
+    t0 = time.time()
     while time.time() - t0 < a.timeout:
         time.sleep(1)
         if not psutil.pid_exists(pid):
-            return {"closed": True, "pid": pid, "answered": answered, "seconds": round(time.time() - t0, 1)}
-        if answered:
-            continue
+            return {"closed": True, "pid": pid, "answered": answered[-1] if answered else None,
+                    "dismissed": dismissed or None, "seconds": round(time.time() - t0, 1)}
         nat = native_windows(pid=pid)
-        prompt = next((w for w in nat["windows"] if w["buttons"] or w["kind"] == "webview2"), None)
-        web = _web_dialog(port) if (prompt is None or prompt["kind"] == "webview2") else None
+        prompt = next((w for w in nat["windows"] if w["kind"] in ("native", "legacy-ie") and w["buttons"]), None)
+        web = None if prompt else _web_dialog(port)
         if prompt is None and web is None:
+            if not nat["blocked"] and win32gui.IsWindow(win[0]) and win32gui.IsWindowEnabled(win[0]) and (answered or dismissed):
+                win32gui.PostMessage(win[0], win32con.WM_CLOSE, 0, 0)  # a dismissed error dialog cancelled the close
+                dismissed.append("(asked to close again)")
             continue
         shown = web or prompt
+        buttons = shown.get("buttons") or []
+        is_save_prompt = any(_match_label([b], "Don't save") is not None for b in buttons)
         if not want:
             return {"closed": False, "pid": pid, "prompt": shown,
                     "hint": "Power BI asks before closing. Run `close --discard` or `close --save`, or `dialog --click <button>`."}
+        label = want if is_save_prompt else next((b for b in ("Close", "OK", "Cancel") if _match_label(buttons, b) is not None), None)
+        if label is None:
+            return {"closed": False, "pid": pid, "prompt": shown, "hint": "Answer this dialog with `dialog --click <button>`."}
         if web:
-            answered = _press_web_dialog(port, web["view"], want)
-        elif prompt["kind"] in ("native", "legacy-ie"):
-            answered = click_native_button(prompt["hwnd"], want)
+            pressed = _press_web_dialog(port, web["view"], label)
         else:
-            raise DriverError("The close prompt is an in-app dialog and this instance has no DevTools; answer it in Power BI.")
-    return {"closed": not psutil.pid_exists(pid), "pid": pid, "answered": answered,
-            "note": f"Still running after {a.timeout:.0f}s."}
+            pressed = click_native_button(prompt["hwnd"], label)
+        (answered if is_save_prompt else dismissed).append(pressed)
+    return {"closed": not psutil.pid_exists(pid), "pid": pid, "answered": answered[-1] if answered else None,
+            "dismissed": dismissed or None, "note": f"Still running after {a.timeout:.0f}s."}
 
 
 def cmd_wait(a) -> dict:
@@ -2233,10 +2714,68 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--report-only", action="store_true", help="reload only the report, not the semantic model definition")
     s.set_defaults(func=cmd_reload)
 
-    s = sub.add_parser("save", parents=[common], help="save the report, confirmed through the Desktop Bridge")
+    s = sub.add_parser("save", parents=[common], help="save the report (confirmed through the Desktop Bridge), or --as a new file")
+    s.add_argument("--as", dest="as_path", help="save a copy as this .pbip (PBIP project), .pbix or .pbit and switch to it")
+    s.add_argument("--overwrite", action="store_true", help="with --as: replace an existing file")
     s.add_argument("--force", action="store_true", help="act even while a modal dialog blocks Power BI")
-    s.add_argument("--timeout", type=float, default=60, help="max seconds to wait for the save (default 60)")
+    s.add_argument("--timeout", type=float, default=120, help="max seconds to wait for the save (default 120)")
     s.set_defaults(func=cmd_save)
+
+    s = sub.add_parser("refresh", parents=[common], help="refresh all data (Home > Refresh) and wait for it")
+    s.add_argument("--sync", action="store_true",
+                   help="save the PBIP and reload it from disk first, so tables created or changed through the "
+                        "Power BI Modeling MCP are refreshed too, and save again afterwards (use after model changes)")
+    s.add_argument("--force", action="store_true", help="act even while a modal dialog blocks Power BI")
+    s.add_argument("--timeout", type=float, default=600, help="max seconds to wait (default 600)")
+    s.set_defaults(func=cmd_refresh)
+
+    proj = argparse.ArgumentParser(add_help=False)
+    proj.add_argument("--project", help=".pbip file or project folder (default: the PBIP open in Power BI)")
+    after = argparse.ArgumentParser(add_help=False)
+    after.add_argument("--reload", action="store_true", help="reload the report in Power BI afterwards (Desktop Bridge)")
+    after.add_argument("--shot", action="store_true", help="reload, then capture the page with visual indices drawn on it")
+
+    s = sub.add_parser("new", parents=[common], help="create a blank PBIP project (PBIR report + TMDL model)")
+    s.add_argument("folder", help="folder to create the project in")
+    s.add_argument("--name", required=True, help="project name, e.g. Sales")
+    s.add_argument("--page-name", default="Page 1", help="name of the first page")
+    s.add_argument("--width", type=int, default=1280)
+    s.add_argument("--height", type=int, default=720)
+    s.add_argument("--open", action="store_true", help="open it with `launch` right away")
+    s.add_argument("--timeout", type=float, default=300, help="with --open: max seconds to wait for Power BI")
+    s.set_defaults(func=cmd_new)
+
+    s = sub.add_parser("layout", parents=[common, proj], help="pages and visuals in the PBIR files (ids, types, positions, fields)")
+    s.add_argument("--page", help="page name, index or id")
+    s.set_defaults(func=cmd_layout)
+
+    s = sub.add_parser("add-page", parents=[common, proj, after], help="add a report page to the PBIR files")
+    s.add_argument("name", help="page display name")
+    s.add_argument("--width", type=int, default=1280)
+    s.add_argument("--height", type=int, default=720)
+    s.set_defaults(func=cmd_add_page)
+
+    s = sub.add_parser("add-visual", parents=[common, proj, after], help="add a visual to a page in the PBIR files")
+    from pbidriver.project import VISUALS
+
+    s.add_argument("type", choices=list(VISUALS), metavar="TYPE",
+                   help="visual type: " + ", ".join(VISUALS) + " (tableEx = table, pivotTable = matrix)")
+    s.add_argument("--field", action="append", help='ROLE=FIELD or just FIELD, e.g. Category=Sales[Region] or "[Total Sales]" '
+                                                    "or Sum(Sales[Amount]); repeat for more")
+    s.add_argument("--page", help="page name, index or id (default: the active page)")
+    s.add_argument("--x", type=float, default=20)
+    s.add_argument("--y", type=float, default=20)
+    s.add_argument("--width", type=float, help="default: a third of the page")
+    s.add_argument("--height", type=float, help="default: a third of the page")
+    s.add_argument("--title", help="visual title")
+    s.add_argument("--text", help="textbox text (\\n for new lines)")
+    s.add_argument("--mode", choices=["dropdown", "list"], help="slicer style")
+    s.set_defaults(func=cmd_add_visual)
+
+    s = sub.add_parser("remove-visual", parents=[common, proj, after], help="delete a visual from the PBIR files")
+    s.add_argument("id", help="visual id (from `layout`)")
+    s.add_argument("--page", help="page name, index or id")
+    s.set_defaults(func=cmd_remove_visual)
 
     s = sub.add_parser("close", parents=[common], help="close a Power BI window; answers the save prompt if told how")
     how = s.add_mutually_exclusive_group()
@@ -2298,16 +2837,65 @@ def build_parser() -> argparse.ArgumentParser:
     act.add_argument("--select", nargs="+", help="values to select (exactly these)")
     act.add_argument("--clear", action="store_true", help="clear the selection")
     s.set_defaults(func=cmd_slicer)
+
+    s = sub.add_parser("doctor", parents=[common], help="check Power BI, the Desktop Bridge, the Modeling MCP and project setup")
+    s.add_argument("--project", help="project folder whose agent setup to check (default: current folder)")
+    s.set_defaults(func=cmd_doctor)
+
+    s = sub.add_parser("setup", help="set up a project for agents: MCP configs, AGENTS.md, the powerbi-builder skill")
+    s.add_argument("folder", nargs="?", default=".", help="project folder (default: current folder)")
+    s.add_argument("--client", action="append", choices=["claude", "vscode", "cursor", "codex", "all"],
+                   help="agent(s) to configure; repeat for more (default: claude, vscode, cursor)")
+    s.add_argument("--runner", choices=["auto", "uvx", "npx", "python"], default="auto",
+                   help="how clients start the pbidriver MCP server (default: uvx if installed, else npx, else this Python)")
+    s.add_argument("--modeling", choices=["auto", "npx", "exe", "none"], default="auto",
+                   help="how clients start the Power BI Modeling MCP (default: npx if Node is installed, "
+                        "else the VS Code extension's exe)")
+    s.add_argument("--force", action="store_true", help="replace existing pbidriver / Modeling MCP entries")
+    s.add_argument("--dry-run", action="store_true", help="show what would change without writing")
+    s.set_defaults(func=cmd_setup)
+
+    s = sub.add_parser("mcp", help="run as an MCP server over stdio (Claude Code, VS Code, Cursor, Codex, ...)",
+                       description="Run pbidriver as an MCP server over stdio. Options: --no-images, --cwd DIR.")
+    s.set_defaults(func=cmd_mcp)  # main() hands `mcp` to the server before parsing; this is for completeness
     return p
 
 
+def cmd_mcp(a) -> dict:
+    from pbidriver import mcp_server
+
+    raise SystemExit(mcp_server.main([]))
+
+
+def cmd_doctor(a) -> dict:
+    from pbidriver import kit
+
+    return kit.doctor(a.project)
+
+
+def cmd_setup(a) -> dict:
+    from pbidriver import kit
+
+    try:
+        return kit.setup(a.folder, a.client, a.runner, a.modeling, a.force, a.dry_run)
+    except ValueError as e:
+        raise DriverError(str(e)) from e
+
+
 def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["mcp"]:  # the server owns stdout: no JSON envelope
+        from pbidriver import mcp_server
+
+        return mcp_server.main(argv[1:])
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     args = build_parser().parse_args(argv)
+    from pbidriver.project import ProjectError
+
     try:
         result = args.func(args)
-    except (DriverError, bridge.BridgeError) as e:
+    except (DriverError, bridge.BridgeError, ProjectError) as e:
         print(json.dumps({"ok": False, "error": str(e)}, indent=2, ensure_ascii=False))
         return 1
     except Exception as e:  # noqa: BLE001  Playwright/driver errors: keep the JSON contract

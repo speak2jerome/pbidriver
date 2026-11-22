@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.0 (2026-11-22)
+
+pbidriver now builds reports as well as inspecting them, and with Microsoft's Power BI Modeling MCP it's a complete kit for agents to build Power BI reports end to end.
+
+- **MCP server:** `pbidriver mcp` exposes every command as a tool (`pbi_shot`, `pbi_add_visual`, ...) generated from the CLI's own options, returns screenshots as images, and adds a `pbi_guide` tool, guide resources and `build-report` / `review-report` prompts. Its instructions explain how to use it alongside the Power BI Modeling MCP. No new dependencies.
+- **Agent setup:** `pbidriver setup` writes MCP configs for pbidriver and the Power BI Modeling MCP (Claude Code `.mcp.json`, VS Code `.vscode/mcp.json`, Cursor `.cursor/mcp.json`, Codex `.codex/config.toml`), an `AGENTS.md` section, `CLAUDE.md` import and the powerbi-builder skill, merging with what's there. `pbidriver doctor` checks the machine and project.
+- **powerbi-builder skill:** the workflow (project, model, refresh, visuals, verify, save), visual types and roles, Modeling MCP recipes (CSV/Excel/SQL/DAX tables, relationships, measures, date tables), the PBIR format and troubleshooting. Also a Claude Code plugin marketplace in the repository: `/plugin marketplace add speak2jerome/pbidriver`.
+- **Authoring PBIP projects:** `new` (blank project, `--open`), `layout`, `add-page`, `add-visual` (card, new card, column/bar/line/area/pie/donut charts, table, matrix, slicer, textbox; fields checked against the live model, including unsaved Modeling MCP changes), `remove-visual`. `--reload` / `--shot` show the result at once.
+- **`save --as`:** saves the open report as a PBIP project (or `.pbix`/`.pbit`) through Power BI's own Save As dialog, so a `.pbix` can be authored.
+- **`refresh`:** clicks the Refresh button itself (not its label), reports the failing query's error from Power BI's refresh dialog, and with `--sync` saves and reloads the project first so tables created through the Modeling MCP are refreshed, then saves the data. A refresh that leaves tables empty now says so instead of reporting success.
+- **Legacy floating dialogs** (such as the refresh progress and error dialog) are detected, read, answered and captured like the other dialog kinds; a hidden one is no longer reported.
+- **Fixes:** `model` on a model with no tables returns empty lists with a note instead of errors; `close` dismisses an error dialog instead of looking for "Don't save"; `launch` returns as soon as a load error dialog appears; pie and donut charts are read correctly; aggregation labels fixed (DistinctCount vs Count); a slicer's title renames its header instead of adding a second title; ambiguous field names get a clear error.
+- **End-to-end test:** `scripts/e2e_kit.py` drives both MCP servers through the official MCP client against a real Power BI Desktop: project, model, refresh, two pages, slicing, save, reopen, 40 checks.
+
 ## 0.1.1 (2026-11-22)
 
 No changes to commands.

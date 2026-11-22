@@ -1,0 +1,13 @@
+{
+  "name": "pbidriver",
+  "version": "0.2.0",
+  "description": "Agent-driven Power BI building kit: the pbidriver MCP server (Power BI Desktop UI, PBIP pages and visuals, screenshots, on-screen numbers, slicers, dialogs, refresh, save), Microsoft's Power BI Modeling MCP (semantic model), and the powerbi-builder skill that ties them together.",
+  "author": {
+    "name": "Jerome Eliezer",
+    "url": "https://github.com/speak2jerome"
+  },
+  "homepage": "https://speak2jerome.github.io/pbidriver/",
+  "repository": "https://github.com/speak2jerome/pbidriver",
+  "license": "MIT",
+  "keywords": ["power-bi", "powerbi", "pbip", "pbir", "dax", "mcp", "report", "dashboard"]
+}

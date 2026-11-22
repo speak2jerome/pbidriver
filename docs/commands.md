@@ -56,6 +56,20 @@ These accept `--page`, `--view`, `--shot` (capture the result) and `--force` (ac
 | `bookmarks [--apply NAME]` | Lists the report's bookmarks, or applies one. |
 | `wait --text T [--gone]` | Waits until text appears on the page, or disappears with `--gone`. |
 
+## Build reports (PBIP projects)
+
+These write PBIR files in the PBIP project open in Power BI (or `--project <file.pbip>`). Add `--reload` to show the change in Power BI right away, or `--shot` to reload and capture the page with visual indices drawn on it. Model changes (tables, measures, relationships) go through Microsoft's [Power BI Modeling MCP](kit.md).
+
+| Command | What it does |
+|---|---|
+| `new FOLDER --name NAME [--open]` | Creates a blank PBIP project: report with one page, empty model. `--open` launches it and returns the model's port. |
+| `layout [--page P]` | Pages and visuals as stored in the files: ids, types, positions, fields. |
+| `add-page NAME [--width W --height H]` | Adds a page. |
+| `add-visual TYPE --field F ... [--page P] [--x --y --width --height] [--title T]` | Adds a visual: `card`, `cardVisual`, `clusteredColumnChart`, `columnChart`, `clusteredBarChart`, `barChart`, `lineChart`, `areaChart`, `pieChart`, `donutChart`, `tableEx` (table), `pivotTable` (matrix), `slicer` (`--mode list\|dropdown`), `textbox` (`--text`). Fields: `Table[Column]`, `[Measure]`, `Sum(Table[Column])`, optionally with a role: `Category=Sales[Region]`. Names are checked against the live model. |
+| `remove-visual ID [--page P]` | Deletes a visual (ids from `layout`). |
+| `save --as FILE.pbip` | Saves the open report as a PBIP project (or another `.pbix`/`.pbit`) and switches to it. `--overwrite` replaces an existing file. |
+| `refresh [--sync]` | Home > Refresh, waiting until it finishes; returns the error text when a source fails. `--sync` first saves and reloads the project so tables created through the Modeling MCP are included, and saves after. |
+
 ## Dialogs, files and lifecycle
 
 | Command | What it does |
@@ -63,9 +77,17 @@ These accept `--page`, `--view`, `--shot` (capture the result) and `--force` (ac
 | `dialog` | Reads the dialog that is blocking Power BI: title, text and buttons. |
 | `dialog --shot` | Captures it as a PNG. |
 | `dialog --click BUTTON` | Answers it. |
-| `reload [--report-only]` | Reloads a PBIP/PBIR report, and its model, from disk after an agent edited the files. Uses the Desktop Bridge. |
+| `reload [--report-only]` | Reloads a PBIP/PBIR report, and its model, from disk after an agent edited the files. Uses the Desktop Bridge. `--report-only` keeps model changes that aren't saved yet. |
 | `save` | Saves the report; the Desktop Bridge confirms that no unsaved changes are left. |
 | `close [--discard \| --save]` | Closes a Power BI window and answers the "Do you want to save your changes?" prompt. |
+
+## Agent setup
+
+| Command | What it does |
+|---|---|
+| `mcp [--no-images] [--cwd DIR]` | Runs pbidriver as an MCP server over stdio. Every command above is a tool named `pbi_<command>`; screenshots are returned as images. Also offers a `pbi_guide` tool, guide resources and two prompts (`build-report`, `review-report`). |
+| `setup [FOLDER] [--client claude\|vscode\|cursor\|codex\|all] [--runner ...] [--modeling ...] [--dry-run]` | Writes MCP configs (pbidriver and the Power BI Modeling MCP), an `AGENTS.md` section and the powerbi-builder skill into a project, without overwriting what's there. |
+| `doctor [--project FOLDER]` | Checks Power BI Desktop, running instances, the Desktop Bridge, the Modeling MCP, uv/Node and the project's agent setup. |
 
 ## Common options
 

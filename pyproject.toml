@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pbidriver"
 dynamic = ["version"]
-description = "WebDriver for Power BI Desktop: let AI agents see and drive it (screenshots, visual data, dialogs, slicers, DAX, Performance Analyzer)."
+description = "WebDriver for Power BI Desktop: let AI agents build, see and drive Power BI reports (PBIP authoring, screenshots, visual data, dialogs, slicers, DAX). CLI and MCP server."
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [{ name = "Jerome Eliezer" }]
@@ -19,7 +19,8 @@ dependencies = [
 keywords = [
     "power bi", "power bi desktop", "powerbi", "ai agents", "claude code", "github copilot", "codex", "cursor",
     "screenshot", "automation", "ui automation", "slicer", "dax", "pbip", "pbir", "performance analyzer",
-    "webview2", "chrome devtools protocol", "playwright", "desktop bridge",
+    "webview2", "chrome devtools protocol", "playwright", "desktop bridge", "mcp", "mcp server",
+    "power bi modeling mcp", "report builder", "tmdl",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -40,6 +41,7 @@ classifiers = [
 
 [project.optional-dependencies]
 test = ["pytest>=7"]
+e2e = ["mcp>=1.10"]
 docs = ["mkdocs>=1.6,<2", "mkdocs-material>=9.5"]
 
 [project.urls]
@@ -54,6 +56,9 @@ pbidriver = "pbidriver.cli:main"
 
 [tool.setuptools]
 packages = ["pbidriver"]
+
+[tool.setuptools.package-data]
+pbidriver = ["skill/*/*.md", "skill/*/references/*.md"]
 
 [tool.setuptools.dynamic]
 version = { attr = "pbidriver.__version__" }

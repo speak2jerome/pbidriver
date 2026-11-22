@@ -1,8 +1,29 @@
 # Use pbidriver with AI agents
 
-pbidriver is a plain command-line tool that prints JSON, so it works with any coding agent that can run shell commands: Claude Code, GitHub Copilot (agent mode and CLI), OpenAI Codex, Cursor, Windsurf, Gemini CLI, or your own scripts. No MCP server or plugin is needed.
+pbidriver works with any coding agent, three ways:
 
-## Set up
+- **MCP server** (`pbidriver mcp`): every command is a typed tool (`pbi_shot`, `pbi_add_visual`, ...) and
+  screenshots come back as images. Best for Claude Code, GitHub Copilot in VS Code, Cursor and Codex.
+- **Claude Code plugin**: the MCP server, Microsoft's Power BI Modeling MCP and the powerbi-builder skill in
+  one install.
+- **CLI**: plain commands that print JSON, for any agent that can run a shell command, and for scripts.
+
+## Set up (MCP, recommended)
+
+```powershell
+pip install pbidriver
+```
+
+```powershell
+pbidriver setup
+```
+
+This writes MCP configs for Claude Code, VS Code and Cursor (add `--client codex` or `--client all` for
+Codex), an `AGENTS.md` section, and the powerbi-builder skill, and also configures Microsoft's Power BI
+Modeling MCP so the agent can build the model too. Details, the Claude Code plugin and manual configuration:
+[Build reports with agents](kit.md).
+
+## Set up (CLI only)
 
 1. Install it where the agent runs (on Windows, next to Power BI Desktop):
 
@@ -30,7 +51,10 @@ Power BI Desktop is driven with the `pbidriver` CLI; every call prints JSON.
 - Every result may contain "alerts". If alerts.blocked is true, read the dialog with `pbidriver dialog`
   and answer it with `pbidriver dialog --click "<button>"`. Fix alerts.visual_errors before moving on.
 - Structure: `pbidriver inventory --summary`; measures and their DAX: `pbidriver model --part measures`.
-- After editing PBIP files on disk: `pbidriver reload`, then `shot` again.
+- Build: `pbidriver new <folder> --name <Name> --open`; model through the Power BI Modeling MCP, then
+  `pbidriver refresh --sync`; `pbidriver add-visual <type> --field "Category=T[Col]" --field "[Measure]" --shot`.
+  `pbidriver add-visual --help` lists the types; `pbidriver layout` lists what's on a page.
+- After editing PBIP files on disk: `pbidriver reload --report-only`, then `shot` again.
 - Interact: `slicer --visual "<name>" --select "<value>" --shot`, `scroll --visual <index> --dx 1200`,
   `hover --visual <index> --text "<value>"`, `menu --visual <index> --more --choose "Sort by > <field>"`.
 - Performance: `pbidriver perf --page "<page>"`.
@@ -39,6 +63,32 @@ Power BI Desktop is driven with the `pbidriver` CLI; every call prints JSON.
 
 ## Recipes
 
+### Build a report from a CSV
+
+With the Power BI Modeling MCP configured next to pbidriver (see [Build reports with agents](kit.md)), ask:
+"Build a sales report from data\sales.csv: revenue by region and month, top products, a region slicer." The
+agent creates the project with `pbi_new`, the model with the Modeling MCP, loads it with
+`pbi_refresh sync=true`, lays out visuals with `pbi_add_visual`, checks them with `pbi_shot` and `pbi_read`
+against `pbi_dax`, and saves. The same steps by hand:
+
+```powershell
+pbidriver new C:\work\sales --name Sales --open
+# ... tables and measures through the Power BI Modeling MCP ...
+pbidriver refresh --sync
+pbidriver add-visual card --field "[Total Revenue]" --x 20 --y 70 --width 300 --height 110
+pbidriver add-visual clusteredColumnChart --field "Category=Sales[Region]" --field "Y=[Total Revenue]" --x 20 --y 200 --width 620 --height 250 --title "Revenue by region" --shot
+pbidriver read
+pbidriver save
+```
+
+### Turn a .pbix into an editable project
+
+```powershell
+pbidriver launch "C:\reports\Sales.pbix"
+pbidriver save --as "C:\reports\Sales\Sales.pbip"
+pbidriver layout
+```
+
 ### Edit a PBIP report and check the result
 
 The agent edits the report's PBIR or `report.json` files, then reloads and looks:
@@ -46,12 +96,12 @@ The agent edits the report's PBIR or `report.json` files, then reloads and looks
 ```powershell
 pbidriver launch "C:\reports\Sales\Sales.pbip"
 # ... the agent edits files under Sales.Report\ ...
-pbidriver reload
+pbidriver reload --report-only
 pbidriver shot --page "Overview" --annotate
 pbidriver read --page "Overview"
 ```
 
-`reload` uses Microsoft's Desktop Bridge, so Power BI picks up the edits in place without a restart.
+`reload` uses Microsoft's Desktop Bridge, so Power BI picks up the edits in place without a restart. `--report-only` keeps model changes that aren't saved yet; a full reload re-reads the model from disk too.
 
 ### Check that a measure shows the right number
 

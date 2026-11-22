@@ -31,11 +31,12 @@ Clicks, typing, scrolling and keys are real input events sent through DevTools, 
 
 ## Dialogs
 
-Power BI Desktop uses three dialog technologies. pbidriver handles all of them.
+Power BI Desktop uses four dialog technologies. pbidriver handles all of them.
 
 | Kind | Examples | How pbidriver reads and answers it |
 |---|---|---|
 | In-app (WebView2) | First-run tips, DAX and TMDL dialogs, message banners | From the page DOM; clicked like any element |
+| Floating WebView2 window | The refresh progress and error dialog | From its own WebView2 page, while its window is visible; clicked like any element |
 | Native Windows (WinForms) | Prompts and warnings | From the dialog's child windows; buttons pressed with `BM_CLICK` |
 | Legacy Internet Explorer | "Do you want to save your changes?", "Enable script visuals", "Create table" | Through the dialog's own HTML document, via `WM_HTML_GETOBJECT` |
 
@@ -53,7 +54,17 @@ The Bridge is on by default: Options > Security > "Enable external tool access t
 
 ## DAX and the model
 
-Power BI Desktop runs a local Analysis Services engine (`msmdsrv`) on a random port. `dax` and `model` find that port, then let Windows PowerShell load the ADOMD.NET client that ships inside Power BI Desktop. Nothing extra is installed. `model` uses the `INFO.VIEW` DAX functions to list tables, columns, measures and relationships.
+Power BI Desktop runs a local Analysis Services engine (`msmdsrv`) on a random port. `dax` and `model` find that port, then let Windows PowerShell load the ADOMD.NET client that ships inside Power BI Desktop. Nothing extra is installed. `model` uses the `INFO.VIEW` DAX functions to list tables, columns, measures and relationships. The same port is what Microsoft's Power BI Modeling MCP connects to (`instances` shows it as `model_port`).
+
+## Authoring PBIP projects
+
+`new`, `add-page` and `add-visual` write PBIR JSON (one `visual.json` per visual) in the schema versions Power BI Desktop 2.159 saves, including the base theme a new report needs. Field references are checked against the live model through the same DAX route, so unsaved changes made through the Modeling MCP count, or against the TMDL files when Power BI is closed. `--reload` asks the Desktop Bridge to reload the report only, which keeps unsaved model changes.
+
+`save --as` drives Power BI's own Save As dialog: File > Save as > Browse this device, then the Windows file dialog's folder, file type and name, confirmed through the Desktop Bridge. `refresh` clicks Home > Refresh and reads the refresh dialog for errors. `refresh --sync` saves and reloads the project first, because Power BI Desktop only refreshes the queries it has read from the project, so tables created through the Modeling MCP would be skipped. It saves again afterwards, because a later report reload would make Power BI forget the data changed.
+
+## MCP server
+
+`pbidriver mcp` is a small JSON-RPC 2.0 server over stdio with no extra dependencies. Its tools are generated from the CLI's own argument definitions, so the CLI and the MCP server can't drift apart. Each call runs the CLI as a child process, one call at a time because they all drive the same Power BI window. PNG files in a result are attached as image content, scaled down if very large. A cancelled call stops its process.
 
 ## Security and privacy
 
@@ -69,3 +80,4 @@ Power BI Desktop runs a local Analysis Services engine (`msmdsrv`) on a random p
 - Slicer commands rescan the list after each click: about 10 s on a 28-option list.
 - Bridge captures locate visuals from the saved file, so unsaved layout changes may be off. `reload` works for PBIP/PBIR projects only, and reloading the model needs a recent model compatibility level.
 - Spotting broken visuals relies on matching Power BI's error messages, so it's a heuristic.
+- `add-visual` covers 14 common visual types. Other types and formatting mean editing the PBIR JSON; the powerbi-builder skill's `pbir` reference shows the format.
