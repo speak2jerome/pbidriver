@@ -2,8 +2,9 @@
   "name": "pbidriver",
   "description": "Build Power BI reports with AI agents: pbidriver + Microsoft's Power BI Modeling MCP + the powerbi-builder skill.",
   "owner": {
-    "name": "Jerome Eliezer",
-    "url": "https://github.com/speak2jerome"
+    "name": "Zynxtech (Jerome Eliezer)",
+    "email": "jeromeeliezer@zynxtech.in",
+    "url": "https://zynxtech.in"
   },
   "plugins": [
     {

@@ -51,7 +51,7 @@
         "applicationSubCategory": "Automation and testing tool for Microsoft Power BI Desktop",
         "operatingSystem": "Windows 10, Windows 11",
         "softwareVersion": {{ config.extra.version | tojson }},
-        "softwareRequirements": "Python 3.9+, Microsoft Power BI Desktop",
+        "softwareRequirements": "Windows 10 or 11, Microsoft Power BI Desktop, Python 3.9+ (or Node.js with uv)",
         "license": "https://opensource.org/licenses/MIT",
         "isAccessibleForFree": true,
         "downloadUrl": "https://pypi.org/project/pbidriver/",
@@ -60,19 +60,25 @@
         "programmingLanguage": "Python",
         "keywords": {{ config.extra.keywords | tojson }},
         "featureList": [
+          "MCP server for Claude Code, GitHub Copilot, Cursor and Codex, set up together with Microsoft's Power BI Modeling MCP",
+          "Build PBIP reports: new projects, pages and visuals with fields checked against the live model",
           "Pixel-exact screenshots of Power BI Desktop report pages, single visuals and the Table, Model, DAX query and TMDL views",
+          "Design review: clean captures, overlays and a layout check for overlaps, alignment and spacing",
           "Read the data behind visuals: chart points, cards, tables, matrices and slicers",
-          "Detect and answer in-app, native and legacy Internet Explorer dialogs",
+          "Detect and answer every kind of Power BI Desktop dialog",
           "Apply slicers, click, hover for tooltips, open menus, scroll, type and apply bookmarks",
-          "Run DAX queries and list tables, columns, measures and relationships",
-          "Performance Analyzer timings per visual",
-          "Reload PBIP projects after edits on disk through the Desktop Bridge"
+          "Run and time DAX queries; list tables, columns, measures and relationships",
+          "Performance tuning: Performance Analyzer timings, cold-cache runs, bottlenecks and hints",
+          "Refresh data, save, convert .pbix to PBIP, and reload PBIP projects through the Desktop Bridge"
         ],
         "image": {{ share_image | tojson }},
         "screenshot": {{ share_image | tojson }},
-        "author": {"@type": "Person", "name": "Jerome Eliezer", "alternateName": "speak2jerome", "url": "https://github.com/speak2jerome"},
+        "author": {"@type": "Person", "name": "Jerome Eliezer", "alternateName": "speak2jerome", "email": "jeromeeliezer@zynxtech.in",
+                   "url": "https://github.com/speak2jerome",
+                   "worksFor": {"@type": "Organization", "name": "Zynxtech", "url": "https://zynxtech.in"}},
+        "publisher": {"@type": "Organization", "name": "Zynxtech", "url": "https://zynxtech.in"},
         "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
-        "sameAs": [{{ config.repo_url | tojson }}, "https://pypi.org/project/pbidriver/", "https://www.npmjs.com/package/pbidriver"]
+        "sameAs": ["https://zynxtech.in/projects/pbidriver/", {{ config.repo_url | tojson }}, "https://pypi.org/project/pbidriver/", "https://www.npmjs.com/package/pbidriver"]
       }
     </script>
   {% endif %}

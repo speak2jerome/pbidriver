@@ -1,10 +1,14 @@
 # pbidriver
 
-[![PyPI](https://img.shields.io/pypi/v/pbidriver)](https://pypi.org/project/pbidriver/)
-[![npm](https://img.shields.io/npm/v/pbidriver)](https://www.npmjs.com/package/pbidriver)
-[![Python](https://img.shields.io/pypi/pyversions/pbidriver)](https://pypi.org/project/pbidriver/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/pbidriver?label=pypi&cacheSeconds=1800)](https://pypi.org/project/pbidriver/)
+[![npm](https://img.shields.io/npm/v/pbidriver?label=npm&cacheSeconds=1800)](https://www.npmjs.com/package/pbidriver)
+[![Python](https://img.shields.io/pypi/pyversions/pbidriver?cacheSeconds=1800)](https://pypi.org/project/pbidriver/)
+[![Tests](https://github.com/speak2jerome/pbidriver/actions/workflows/tests.yml/badge.svg)](https://github.com/speak2jerome/pbidriver/actions/workflows/tests.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](https://github.com/speak2jerome/pbidriver/blob/main/LICENSE)
 [![Docs](https://img.shields.io/badge/docs-speak2jerome.github.io%2Fpbidriver-indigo)](https://speak2jerome.github.io/pbidriver/)
+[![Zynxtech open source](https://img.shields.io/badge/Zynxtech-open%20source-0a7)](https://zynxtech.in/projects/pbidriver/)
+
+*Part of [Zynxtech](https://zynxtech.in) open source. Project page: [zynxtech.in/projects/pbidriver](https://zynxtech.in/projects/pbidriver/).*
 
 **WebDriver for Power BI Desktop.** Let AI agents build, see and drive Power BI Desktop reports: create PBIP projects, pages and visuals; screenshots of pages, visuals and every view; the data behind visuals; blocking dialogs; slicers, tooltips, menus, bookmarks; refresh, DAX and Performance Analyzer. It all runs locally against Power BI Desktop, with no screen grabs and no publishing to the service.
 
@@ -285,8 +289,10 @@ The powerbi-builder skill lives in `pbidriver/skill/` (packaged, used by `setup`
 
 ## Author
 
-Jerome Eliezer ([speak2jerome](https://github.com/speak2jerome))
+Jerome Eliezer, [Zynxtech](https://zynxtech.in) ([jeromeeliezer@zynxtech.in](mailto:jeromeeliezer@zynxtech.in), GitHub [speak2jerome](https://github.com/speak2jerome)).
+
+pbidriver is part of Zynxtech's open-source projects: [zynxtech.in/projects/pbidriver](https://zynxtech.in/projects/pbidriver/).
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
+MIT, see [LICENSE](https://github.com/speak2jerome/pbidriver/blob/main/LICENSE).

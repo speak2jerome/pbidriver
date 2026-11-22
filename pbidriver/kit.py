@@ -20,6 +20,7 @@ REPO = "speak2jerome/pbidriver"
 REPO_URL = f"https://github.com/{REPO}"
 ISSUES_URL = f"{REPO_URL}/issues"
 DOCS_URL = "https://speak2jerome.github.io/pbidriver/"
+PROJECT_URL = "https://zynxtech.in/projects/pbidriver/"  # pbidriver is part of Zynxtech open source
 SKILL_NAME = "powerbi-builder"
 CLIENTS = ("claude", "vscode", "cursor", "codex")
 BLOCK_START = "<!-- pbidriver:start -->"
@@ -438,7 +439,7 @@ def locate() -> dict:
             "cli": _which("pbidriver"),
             "mcp_server": pbidriver_server("auto"),
             "skill": str(skill_source()),
-            "links": {"docs": DOCS_URL, "repo": REPO_URL, "issues": ISSUES_URL,
+            "links": {"project": PROJECT_URL, "docs": DOCS_URL, "repo": REPO_URL, "issues": ISSUES_URL,
                       "pypi": "https://pypi.org/project/pbidriver/", "npm": "https://www.npmjs.com/package/pbidriver"},
             "install": ["pip install -U pbidriver", "uvx pbidriver@latest <command>", "npx -y pbidriver@latest <command>"],
         },

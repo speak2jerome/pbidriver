@@ -1,11 +1,12 @@
 site_name: pbidriver
 site_description: Open-source CLI and MCP server that lets AI agents like Claude Code and GitHub Copilot build, screenshot, read and drive Power BI Desktop reports - visuals, slicers, dialogs, DAX.
 site_url: https://speak2jerome.github.io/pbidriver/
-site_author: Jerome Eliezer
+site_author: Jerome Eliezer (Zynxtech)
 repo_url: https://github.com/speak2jerome/pbidriver
 repo_name: speak2jerome/pbidriver
 edit_uri: edit/main/docs/
-copyright: MIT License - Jerome Eliezer
+copyright: >-
+  MIT License · Jerome Eliezer · part of <a href="https://zynxtech.in/projects/pbidriver/">Zynxtech open source</a>
 exclude_docs: |
   overrides/
 
@@ -62,6 +63,19 @@ markdown_extensions:
       check_paths: true
 
 extra:
+  social:
+    - icon: material/web
+      link: https://zynxtech.in/projects/pbidriver/
+      name: pbidriver on Zynxtech
+    - icon: fontawesome/brands/github
+      link: https://github.com/speak2jerome/pbidriver
+      name: Source on GitHub
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/pbidriver/
+      name: pbidriver on PyPI
+    - icon: fontawesome/brands/npm
+      link: https://www.npmjs.com/package/pbidriver
+      name: pbidriver on npm
   home_title: "pbidriver: let AI agents see and drive Power BI Desktop"
   keywords: >-
     Power BI Desktop, Power BI automation, AI agents, MCP server, Power BI Modeling MCP, build Power BI report with AI,

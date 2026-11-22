@@ -101,4 +101,8 @@ It's tested on Power BI Desktop 2.152 (March 2026) and 2.159 (November 2026), Mi
 
 ## Is it free?
 
-Yes. pbidriver is open source under the MIT licence. Install it with `pip install pbidriver`.
+Yes. pbidriver is open source under the MIT licence, part of [Zynxtech](https://zynxtech.in) open source ([project page](https://zynxtech.in/projects/pbidriver/)). Install it with `pip install pbidriver` or `npx pbidriver`.
+
+## Who makes pbidriver?
+
+Jerome Eliezer ([speak2jerome](https://github.com/speak2jerome) on GitHub), as part of [Zynxtech](https://zynxtech.in)'s open-source projects. Contact: [jeromeeliezer@zynxtech.in](mailto:jeromeeliezer@zynxtech.in). Bugs and feature requests: [GitHub issues](https://github.com/speak2jerome/pbidriver/issues).

@@ -11,7 +11,9 @@
 
 Everything runs locally against Power BI Desktop. There are no screen grabs and nothing is published to the Power BI service.
 
-**New in 0.2: build reports, not just inspect them.** Together with Microsoft's Power BI Modeling MCP, pbidriver is a complete kit for agents to build Power BI reports: create a PBIP project, model the data, add pages and visuals, and check every number on screen. It ships as an MCP server (`pbidriver mcp`), a one-command project setup (`pbidriver setup`), a Claude Code plugin and an agent skill. See [Build reports with agents](kit.md).
+**Build reports, not just inspect them.** Together with Microsoft's Power BI Modeling MCP, pbidriver is a complete kit for agents to build Power BI reports: create a PBIP project, model the data, add pages and visuals, review the design, tune performance, and check every number on screen. It ships as an MCP server (`pbidriver mcp`), a one-command project setup (`pbidriver setup`), a Claude Code plugin and an agent skill. See [Build reports with agents](kit.md), and the [changelog](changelog.md) for what's new in each release.
+
+pbidriver is part of [Zynxtech](https://zynxtech.in) open source, by Jerome Eliezer. Project page: [zynxtech.in/projects/pbidriver](https://zynxtech.in/projects/pbidriver/).
 
 ```powershell
 pip install pbidriver
@@ -75,4 +77,4 @@ AI agents can already write DAX and edit PBIP report files, but they can't see t
 - [Command reference](commands.md): every command and option.
 - [How it works](how-it-works.md): DevTools, the Desktop Bridge, dialogs, data reading, security and limits.
 - [FAQ](faq.md)
-- Source on [GitHub](https://github.com/speak2jerome/pbidriver), package on [PyPI](https://pypi.org/project/pbidriver/).
+- Project page on [Zynxtech](https://zynxtech.in/projects/pbidriver/), source on [GitHub](https://github.com/speak2jerome/pbidriver), packages on [PyPI](https://pypi.org/project/pbidriver/) and [npm](https://www.npmjs.com/package/pbidriver).

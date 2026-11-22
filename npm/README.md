@@ -50,10 +50,11 @@ if (data.alerts?.blocked) {
 
 ## Documentation
 
+- [Project page](https://zynxtech.in/projects/pbidriver/) (Zynxtech)
 - [Documentation site](https://speak2jerome.github.io/pbidriver/)
 - [Use with AI agents](https://speak2jerome.github.io/pbidriver/agents/): Claude Code, GitHub Copilot, Codex and Cursor, with recipes
 - [Command reference](https://speak2jerome.github.io/pbidriver/commands/)
 - [FAQ](https://speak2jerome.github.io/pbidriver/faq/)
 - Source: [github.com/speak2jerome/pbidriver](https://github.com/speak2jerome/pbidriver)
 
-MIT licence. Author: Jerome Eliezer ([speak2jerome](https://github.com/speak2jerome)).
+MIT licence. Author: Jerome Eliezer, [Zynxtech](https://zynxtech.in) ([jeromeeliezer@zynxtech.in](mailto:jeromeeliezer@zynxtech.in), GitHub [speak2jerome](https://github.com/speak2jerome)). pbidriver is part of Zynxtech open source: [project page](https://zynxtech.in/projects/pbidriver/).

@@ -11,8 +11,11 @@ authors:
   - given-names: Jerome
     family-names: Eliezer
     alias: speak2jerome
+    affiliation: Zynxtech
+    email: jeromeeliezer@zynxtech.in
+    website: "https://zynxtech.in"
 repository-code: "https://github.com/speak2jerome/pbidriver"
-url: "https://speak2jerome.github.io/pbidriver/"
+url: "https://zynxtech.in/projects/pbidriver/"
 license: MIT
 version: 0.3.0
 date-released: "2026-11-22"

@@ -47,11 +47,13 @@ Key facts:
   lineChart, areaChart, pieChart, donutChart, tableEx (table), pivotTable (matrix), slicer, textbox.
 - Tested on Power BI Desktop 2.152 (March 2026) and 2.159 (November 2026), Microsoft Store builds, with Power BI
   Modeling MCP 0.4.0.
-- Version 0.3.0, released 2026-11-22. Author: Jerome Eliezer (GitHub: speak2jerome). Licence: MIT.
+- Version 0.3.0, released 2026-11-22. Author: Jerome Eliezer (Zynxtech, jeromeeliezer@zynxtech.in; GitHub: speak2jerome). Licence: MIT.
+- Part of Zynxtech open source (https://zynxtech.in). Project page: https://zynxtech.in/projects/pbidriver/
 - Not an ODBC driver or data connector: "driver" as in WebDriver.
 
 ## Docs
 
+- [Project page](https://zynxtech.in/projects/pbidriver/): pbidriver on Zynxtech
 - [Documentation site](https://speak2jerome.github.io/pbidriver/): overview and install
 - [Build reports with agents](https://speak2jerome.github.io/pbidriver/kit/): pbidriver + Power BI Modeling MCP, setup, workflow
 - [Use with AI agents](https://speak2jerome.github.io/pbidriver/agents/): setup for Claude Code, Copilot, Codex, Cursor, with recipes

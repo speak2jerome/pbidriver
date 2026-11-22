@@ -21,9 +21,10 @@
     "cli",
     "mcp",
     "mcp-server",
-    "pbir"
+    "pbir",
+    "zynxtech"
   ],
-  "homepage": "https://speak2jerome.github.io/pbidriver/",
+  "homepage": "https://zynxtech.in/projects/pbidriver/",
   "bugs": {
     "url": "https://github.com/speak2jerome/pbidriver/issues"
   },
@@ -33,7 +34,11 @@
     "directory": "npm"
   },
   "license": "MIT",
-  "author": "Jerome Eliezer (https://github.com/speak2jerome)",
+  "author": {
+    "name": "Jerome Eliezer",
+    "email": "jeromeeliezer@zynxtech.in",
+    "url": "https://zynxtech.in"
+  },
   "type": "commonjs",
   "main": "index.js",
   "types": "index.d.ts",

@@ -8,7 +8,8 @@ dynamic = ["version"]
 description = "WebDriver for Power BI Desktop: let AI agents build, see and drive Power BI reports (PBIP authoring, screenshots, visual data, dialogs, slicers, DAX). CLI and MCP server."
 readme = "README.md"
 license = { file = "LICENSE" }
-authors = [{ name = "Jerome Eliezer" }]
+authors = [{ name = "Jerome Eliezer", email = "jeromeeliezer@zynxtech.in" }]
+maintainers = [{ name = "Zynxtech", email = "jeromeeliezer@zynxtech.in" }]
 requires-python = ">=3.9"
 dependencies = [
     "playwright>=1.40",
@@ -20,7 +21,7 @@ keywords = [
     "power bi", "power bi desktop", "powerbi", "ai agents", "claude code", "github copilot", "codex", "cursor",
     "screenshot", "automation", "ui automation", "slicer", "dax", "pbip", "pbir", "performance analyzer",
     "webview2", "chrome devtools protocol", "playwright", "desktop bridge", "mcp", "mcp server",
-    "power bi modeling mcp", "report builder", "tmdl",
+    "power bi modeling mcp", "report builder", "tmdl", "zynxtech",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -45,8 +46,9 @@ e2e = ["mcp>=1.10"]
 docs = ["mkdocs>=1.6,<2", "mkdocs-material>=9.5"]
 
 [project.urls]
-Homepage = "https://speak2jerome.github.io/pbidriver/"
+Homepage = "https://zynxtech.in/projects/pbidriver/"
 Documentation = "https://speak2jerome.github.io/pbidriver/"
+Zynxtech = "https://zynxtech.in/"
 Source = "https://github.com/speak2jerome/pbidriver"
 Issues = "https://github.com/speak2jerome/pbidriver/issues"
 Changelog = "https://github.com/speak2jerome/pbidriver/blob/main/CHANGELOG.md"

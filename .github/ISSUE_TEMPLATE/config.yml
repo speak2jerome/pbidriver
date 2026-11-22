@@ -1,5 +1,8 @@
 blank_issues_enabled: true
 contact_links:
+  - name: pbidriver project page (Zynxtech)
+    url: https://zynxtech.in/projects/pbidriver/
+    about: pbidriver is part of Zynxtech open source.
   - name: Documentation and FAQ
     url: https://speak2jerome.github.io/pbidriver/
     about: Setup, every command, how it works, and answers to common questions.
