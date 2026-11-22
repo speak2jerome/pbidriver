@@ -31,7 +31,7 @@ MAX_IMAGE_SIDE = 2000
 MAX_IMAGE_BYTES = 3_500_000
 
 READ_ONLY = {"instances", "status", "pages", "alerts", "visuals", "inventory", "shot", "read", "dax", "model",
-             "perf", "layout", "doctor", "wait", "hover"}
+             "perf", "layout", "doctor", "wait", "hover", "locate", "bug-report"}
 DESTRUCTIVE = {"close", "remove-visual"}
 
 # Guidance an agent needs that doesn't fit in argparse help (which is written for a terminal).
@@ -44,15 +44,28 @@ NOTES = {
     "instances": "Every running Power BI Desktop. `model_port` is the instance's Analysis Services port: the "
                  "Power BI Modeling MCP connects to it (connection string `Data Source=localhost:<model_port>`).",
     "status": "Quick health check of one instance: file, current page, unsaved changes, blocking dialogs.",
-    "shot": "Returns the capture as an image. Use `annotate` to see each visual's index (the `visual` parameter "
-            "of other tools), `visual` for one visual, `view` for the Table/Model/DAX/TMDL views.",
+    "shot": "Returns the capture as an image. `annotate=true` labels each visual with its index (the `visual` "
+            "parameter of other tools). `overlay=[...]` draws more: title, size and pos (in page units, as used by "
+            "add_visual), errors, perf (render ms), grid, align (edges that almost line up), gaps (spacing), overlap; "
+            "`all` = everything but perf. `clean=true` is for judging the design: no overlays, selection, hover or "
+            "menus, plus a `layout` check (overlaps, near-misses, uneven gaps). `visual=` for one visual, `view=` for "
+            "the Table/Model/DAX/TMDL views, `scale=2` for detail.",
+    "perf": "Performance Analyzer: per-visual total, DAX query, visual display and other ms, the bottleneck of each "
+            "visual and tuning hints. runs=3 gives medians, cold=true clears the model cache before each refresh, "
+            "threshold= sets what counts as slow, all_pages=true ranks pages, queries=true returns each visual's DAX. "
+            "Run pbi_guide topic=performance for the tuning workflow.",
     "read": "The numbers behind visuals as JSON (chart points, card values, table/matrix rows, slicer items). "
             "Compare with pbi_dax to verify a visual shows what the model says.",
-    "dax": "Run a DAX query (EVALUATE ...) against the open model and get rows back.",
+    "dax": "Run a DAX query (EVALUATE ...) against the open model and get rows back. runs=N with cold=true times it "
+           "with the engine cache cleared before each run (compare a measure before and after a rewrite).",
+    "locate": "Where pbidriver and Microsoft's Power BI Modeling MCP (VS Code extension, exe, npx package) are on this "
+              "machine, how MCP clients start them, and how to install what's missing.",
+    "bug-report": "Drafts a GitHub issue for a pbidriver bug (environment, command, error; paths, user and report "
+                  "names redacted). Nothing is sent: show the draft to the user and file it only with their OK.",
     "model": "Tables, columns, measures (with expressions) and relationships of the open model.",
     "new": "Creates a blank PBIP project (PBIR report + empty TMDL model) in `folder`. With open=true it is "
-           "launched right away. Build the model with the Power BI Modeling MCP, then add visuals with "
-           "pbi_add_visual.",
+           "launched right away; git=true puts it under git with a first commit. Build the model with the Power BI "
+           "Modeling MCP, then add visuals with pbi_add_visual.",
     "layout": "Pages and visuals as stored in the PBIR files: ids (for remove_visual), types, positions, fields.",
     "add-page": "Adds a page to the PBIR files. Set reload=true to show it in Power BI.",
     "add-visual": "Adds a visual to the PBIR files of the open (or `project`) PBIP. Fields are checked against the "
@@ -85,6 +98,8 @@ NOTES = {
 GUIDE_TOPICS = {
     "workflow": "SKILL.md",
     "visuals": "references/visuals.md",
+    "design": "references/design-review.md",
+    "performance": "references/performance.md",
     "modeling-mcp": "references/modeling-mcp.md",
     "pbir": "references/pbir.md",
     "troubleshooting": "references/troubleshooting.md",
@@ -105,8 +120,12 @@ Build a report:
 4. Verify: pbi_shot, pbi_read, pbi_dax; fix anything in `alerts`.
 5. pbi_save. Never hand-edit TMDL files of a project that is open in Power BI.
 
-Call pbi_guide for the full workflow, visual types and roles, Modeling MCP recipes, and troubleshooting.
-Every result is JSON with ok=true/false; read `alerts` and `next` when present.
+Call pbi_guide for the full workflow, visual types and roles, design review, performance tuning, Modeling MCP
+recipes, and troubleshooting. Every result is JSON with ok=true/false; read `alerts`, `next` and `caution`.
+
+pbidriver is new: before changing a user's report, make sure it's in git with a fresh commit or work on a copy;
+if neither, ask the user first. If pbidriver itself misbehaves, draft an issue with pbi_bug_report and file it
+only with the user's OK. pbi_locate shows where pbidriver and the Modeling MCP extension are installed.
 """
 
 
@@ -181,8 +200,10 @@ def tool_list() -> list[dict]:
         "name": PREFIX + "guide",
         "title": "Power BI: how to build reports with pbidriver and the Power BI Modeling MCP",
         "description": "Read this first when building or changing a Power BI report. Topics: workflow (default), "
-                       "visuals (types, roles, field syntax), modeling-mcp (connect, tables from CSV/SQL, measures, "
-                       "relationships), pbir (report file format), troubleshooting.",
+                       "visuals (types, roles, field syntax), design (reviewing how a page looks: clean shots, "
+                       "overlays, layout checks), performance (finding and fixing slow visuals), modeling-mcp "
+                       "(connect, tables from CSV/SQL, measures, relationships), pbir (report file format), "
+                       "troubleshooting (including reporting bugs).",
         "inputSchema": {"type": "object", "additionalProperties": False, "properties": {
             "topic": {"type": "string", "enum": list(GUIDE_TOPICS), "default": "workflow"}}},
         "annotations": {"readOnlyHint": True, "destructiveHint": False, "openWorldHint": False},
@@ -385,7 +406,7 @@ class Server:
         self.reply(rid, {"content": content, "isError": not result.get("ok", False)})
 
     def run(self, rid, argv: list[str], stdin: str | None) -> dict:
-        env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUTF8="1")
+        env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUTF8="1", PBIDRIVER_MCP="1")
         flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
         try:
             proc = subprocess.Popen([sys.executable, "-m", "pbidriver", *argv], cwd=self.cwd, env=env,

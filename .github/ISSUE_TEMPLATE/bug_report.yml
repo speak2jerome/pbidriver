@@ -1,0 +1,44 @@
+name: Bug report
+description: A pbidriver command crashed, returned something wrong, or stopped working after a Power BI update.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. `pbidriver bug-report --command "..." --error "..."` drafts this for you, with
+        versions filled in and paths, user name and report names redacted.
+        Please don't post confidential report data or screenshots.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: The error message, or the wrong result (the JSON pbidriver returned is ideal).
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command
+      description: The pbidriver command, or the MCP tool and its arguments.
+      render: shell
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+      description: What should have happened.
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Output of `pbidriver doctor`, or at least the pbidriver and Power BI Desktop versions.
+      value: |
+        - pbidriver:
+        - Power BI Desktop:
+        - Run via: CLI / MCP server (which client?)
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I removed confidential data (report names, numbers, screenshots) from this issue.
+          required: true

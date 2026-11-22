@@ -62,6 +62,14 @@ Power BI Desktop runs a local Analysis Services engine (`msmdsrv`) on a random p
 
 `save --as` drives Power BI's own Save As dialog: File > Save as > Browse this device, then the Windows file dialog's folder, file type and name, confirmed through the Desktop Bridge. `refresh` clicks Home > Refresh and reads the refresh dialog for errors. `refresh --sync` saves and reloads the project first, because Power BI Desktop only refreshes the queries it has read from the project, so tables created through the Modeling MCP would be skipped. It saves again afterwards, because a later report reload would make Power BI forget the data changed.
 
+## Overlays and layout checks
+
+Visual boxes are read from the canvas DOM and converted to page units with the page's size from the report file, so the sizes and positions in overlays and in `legend` are the numbers PBIR files and `add-visual` use. The layout check compares every pair of edges and the spacing between neighbours: edges 1 to 6 units apart count as near-misses, and gaps within 6 units of the most common gap, but not equal to it, as uneven. Shapes, images and buttons are treated as decoration, so a background shape behind visuals isn't an overlap. `--clean` parks the pointer and presses Escape before capturing, so no hover header, selection outline, tooltip or open menu shows.
+
+## Performance
+
+`perf` drives Power BI's own Performance Analyzer pane: start recording, Refresh visuals, expand each row, read the timings. `--runs` repeats the refresh and reports medians. `--cold` sends an XMLA `ClearCache` command for the model's database to the local engine before each refresh, so DAX queries can't be answered from cache; `dax --cold` does the same between query runs. The bottleneck is the largest of DAX query, DirectQuery, visual display and other (waiting for other visuals).
+
 ## MCP server
 
 `pbidriver mcp` is a small JSON-RPC 2.0 server over stdio with no extra dependencies. Its tools are generated from the CLI's own argument definitions, so the CLI and the MCP server can't drift apart. Each call runs the CLI as a child process, one call at a time because they all drive the same Power BI window. PNG files in a result are attached as image content, scaled down if very large. A cancelled call stops its process.

@@ -29,6 +29,9 @@ pbidriver dax "EVALUATE TOPN(5, Sales)"
 
 Every command prints one JSON object (`{"ok": true, ...}` or `{"ok": false, "error": "..."}`), so an agent can read the result and decide what to do next.
 
+!!! warning "pbidriver is a new tool: work on a copy or in git"
+    pbidriver was first released in November 2026. It edits Power BI project files, saves through Power BI and drives its UI, and like any new software it can have bugs that damage a report. Work on a copy of your report, or keep it in git and commit before letting an agent change it, so you can always go back. `pbidriver new --git` starts new projects under git, and commands that change files add a `caution` note while a project isn't under version control. Found a bug? `pbidriver bug-report` drafts an issue for [GitHub](https://github.com/speak2jerome/pbidriver/issues).
+
 !!! note "Not a data connector"
     "Driver" as in WebDriver, the thing that drives an app for automation. pbidriver is not an ODBC driver or a Power BI connector.
 
@@ -43,8 +46,9 @@ AI agents can already write DAX and edit PBIP report files, but they can't see t
 | **Never get stuck** | Blocking dialogs of every kind Power BI uses (in-app, floating WebView2, native Windows and legacy Internet Explorer) are reported on every call and answered with `dialog --click`. Input is refused while a modal is open. Broken visuals are reported too. |
 | **Interact** | Real mouse and keyboard input: slicers, clicks, scrolling (including sideways in wide tables), typing, keys, tooltips, context and "More options" menus, and bookmarks. |
 | **Understand** | Every page, visual, field, filter and bookmark from the report file, and the model's tables, columns, measures (with DAX) and relationships. |
-| **Measure** | Performance Analyzer timings per visual (DAX query, visual display, other), optionally with each visual's query. |
 | **Build** | Create PBIP projects, add pages and visuals (fields checked against the live model), convert a .pbix to PBIP, refresh data and report source errors. |
+| **Review the design** | Clean captures for judging a page, overlays with sizes, positions, a grid, spacing, alignment and overlaps, and a layout check listing what to fix. |
+| **Tune performance** | Repeated and cold-cache Performance Analyzer runs, each slow visual's bottleneck with what to do about it, every page ranked, and cold DAX timings. |
 | **Close the loop** | Reload a PBIP after edits on disk, save, and close, answering the save prompt. |
 
 ## Works with any open Power BI Desktop

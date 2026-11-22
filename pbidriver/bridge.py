@@ -245,6 +245,23 @@ try {
   $queries = [IO.File]::ReadAllText($QueryFile, [Text.Encoding]::UTF8) | ConvertFrom-Json
   foreach ($q in $queries) {
     $sw = [Diagnostics.Stopwatch]::StartNew()
+    if ($q -eq '__CLEAR_CACHE__') {  # empty the engine's cache so the next query runs cold
+      try {
+        $db = $cn.Database
+        if (-not $db) {
+          $c = $cn.CreateCommand(); $c.CommandText = 'SELECT [CATALOG_NAME] FROM $SYSTEM.DBSCHEMA_CATALOGS'
+          $rd = $c.ExecuteReader(); if ($rd.Read()) { $db = $rd.GetValue(0) }; $rd.Close()
+        }
+        $cmd = $cn.CreateCommand()
+        $cmd.CommandText = "<ClearCache xmlns=`"http://schemas.microsoft.com/analysisservices/2003/engine`"><Object><DatabaseID>$db</DatabaseID></Object></ClearCache>"
+        [void]$cmd.ExecuteNonQuery()
+        [void]$results.Add(@{ ok = $true; cleared = $true; ms = $sw.ElapsedMilliseconds })
+      } catch {
+        $e = $_.Exception; while ($e.InnerException) { $e = $e.InnerException }
+        [void]$results.Add(@{ ok = $false; error = "ClearCache failed: " + $e.Message; ms = $sw.ElapsedMilliseconds })
+      }
+      continue
+    }
     try {
       $cmd = $cn.CreateCommand(); $cmd.CommandText = $q; $cmd.CommandTimeout = $Timeout
       $r = $cmd.ExecuteReader()
@@ -336,7 +353,7 @@ def run_dax(pid: int, queries: list[str], max_rows: int = 1000, timeout: int = 1
     if isinstance(results, dict):  # a single result may come back unwrapped
         results = [results]
     for r in results:
-        if r.get("ok"):
+        if r.get("ok") and not r.get("cleared"):
             r["columns"] = _clean_columns(r.get("columns") or [])
             rows = r.get("rows") or []
             if rows and not isinstance(rows[0], list):  # one-column rows may come back flattened
@@ -344,6 +361,16 @@ def run_dax(pid: int, queries: list[str], max_rows: int = 1000, timeout: int = 1
             r["rows"] = rows
             r["truncated"] = r.get("row_count", 0) > len(rows)
     return results
+
+
+CLEAR_CACHE = "__CLEAR_CACHE__"  # a run_dax "query" that empties the engine's cache (XMLA ClearCache)
+
+
+def clear_cache(pid: int) -> None:
+    """Empty the model engine's cache, so the next queries and visual refreshes run cold."""
+    r = run_dax(pid, [CLEAR_CACHE])[0]
+    if not r.get("ok"):
+        raise BridgeError(str(r.get("error")))
 
 
 _MODEL_QUERIES = {

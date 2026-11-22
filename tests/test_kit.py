@@ -101,6 +101,55 @@ def test_invalid_json_config_is_reported(tmp_path, no_tools):
         kit.setup(str(tmp_path), ["claude"], runner="python", modeling="none")
 
 
+def test_redaction(monkeypatch):
+    monkeypatch.setenv("USERNAME", "jdoe")
+    home = str(Path.home())
+    text = (f"Error at {home}\\work\\Sales Report.pbix: jdoe can't open H:\\Clients\\Acme\\Budget.Report\\x.json "
+            "and Q4.pbip")
+    out = kit._redact(text)
+    for leak in (home, "Sales Report", "Acme", "Clients", "Budget", "Q4", "jdoe"):
+        assert leak not in out, leak
+    assert "<report>.pbix" in out and "<report>.pbip" in out and "<path>" in out
+
+
+def test_bug_report_draft(tmp_path, monkeypatch, no_tools):
+    monkeypatch.setattr(kit, "_pbi_desktop", lambda: {"installed": True, "version": "2.159", "edition": "Store"})
+    home = str(Path.home())
+    r = kit.bug_report(command="pbidriver read --visual 3 --port 9444",
+                       error=f"TypeError: boom in {home}\\x\\Secret Plan.pbix", expected="rows",
+                       out=str(tmp_path / "draft.md"))
+    assert r["title"].startswith("read: TypeError: boom")
+    assert home not in r["body"] and "Secret Plan" not in r["body"] and home not in r["new_issue_url"]
+    assert "**pbidriver:**" in r["body"] and "2.159" in r["body"]
+    assert r["new_issue_url"].startswith("https://github.com/speak2jerome/pbidriver/issues/new?template=bug_report.yml")
+    assert "what-happened=" in r["new_issue_url"] and "gh_command" not in r  # no gh on this fake machine
+    assert (tmp_path / "draft.md").read_text(encoding="utf-8").startswith("# read: ")
+    assert "only with" in r["next"]
+
+
+def test_vcs_caution_and_git_init(tmp_path):
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    (proj / "a.txt").write_text("x")
+    assert "git" in kit.vcs_caution(proj / "a.txt")
+    if not kit.shutil.which("git"):
+        pytest.skip("git not installed")
+    r = kit.git_init(proj, "first")
+    assert r["git"] is True
+    assert kit.git_root(proj) == proj.resolve() and kit.vcs_caution(proj / "a.txt") is None
+
+
+def test_locate(no_tools):
+    loc = kit.locate()
+    assert loc["pbidriver"]["links"]["issues"] == "https://github.com/speak2jerome/pbidriver/issues"
+    assert "code --install-extension analysis-services.powerbi-modeling-mcp" in loc["power_bi_modeling_mcp"]["install"]
+    assert loc["power_bi_modeling_mcp"]["vscode_extension"] == []
+
+
+def test_agents_block_mentions_caution_and_bugs():
+    assert "git" in kit.AGENTS_BLOCK and "pbi_bug_report" in kit.AGENTS_BLOCK and kit.REPO_URL in kit.AGENTS_BLOCK
+
+
 def test_plugin_copy_of_the_skill_matches_the_package():
     """plugins/pbidriver/skills is what Claude Code's plugin installs; it must equal the packaged skill."""
     src = kit.skill_source()

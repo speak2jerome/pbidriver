@@ -25,4 +25,26 @@ Start with `pbi_doctor` (machine, Power BI, Desktop Bridge, Modeling MCP, projec
 | Screenshot is empty or cut | window minimized/off-screen or still rendering | pbidriver restores and waits itself; raise `settle` for heavy pages |
 | `pbi_save` says saved but `unsaved` stays true | a dialog interrupted the save | `pbi_alerts`, answer it, save again |
 
+| Results carry a `caution` field | the project isn't under version control | ask the user: `git init` + commit, or work on a copy (`pbi_guide` explains why) |
+| Can't find the Modeling MCP / don't know how the servers are started | not installed, or installed somewhere unexpected | `pbi_locate`: extension folder and exe, npx package, MCP commands, install commands (`code --install-extension analysis-services.powerbi-modeling-mcp`) |
+| A pbidriver command crashes or returns nonsense | a pbidriver bug (or a Power BI update it doesn't know yet) | retry once, then `pbi_bug_report` and follow its `next` (show the user, file only with their OK) |
+
 Errors always come back as `{"ok": false, "error": "..."}`; most include what to do next.
+
+## Where things are
+
+- pbidriver: `pbi_locate` / `pbidriver locate` (package folder, Python, how MCP clients start it). Docs
+  https://speak2jerome.github.io/pbidriver/, source and issues https://github.com/speak2jerome/pbidriver.
+- Power BI Modeling MCP: VS Code extension `analysis-services.powerbi-modeling-mcp`
+  (https://marketplace.visualstudio.com/items?itemName=analysis-services.powerbi-modeling-mcp), installed under
+  `%USERPROFILE%\.vscode\extensions\analysis-services.powerbi-modeling-mcp-<version>-win32-x64\server\powerbi-modeling-mcp.exe`;
+  or `npx -y @microsoft/powerbi-modeling-mcp@latest --start`. In VS Code, Command Palette > "MCP: List Servers"
+  shows it as "Power BI Modeling MCP Server"; in Claude Code, `/mcp`.
+
+## Reporting a pbidriver bug
+
+`pbi_bug_report command="..." error="..." expected="..."` (CLI `pbidriver bug-report --command ... --error ...`)
+writes a draft issue with versions and the failing call, with home folder, user name, report names and other
+absolute paths redacted. It returns `new_issue_url` (opens GitHub's new-issue page, pre-filled), `gh_command`
+when GitHub CLI is installed, and `search_existing`. Show the draft to the user first, and file it only with
+their OK; never attach report data or screenshots of their reports without asking.

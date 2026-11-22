@@ -1,0 +1,16 @@
+name: Feature request
+description: Something pbidriver should do for you or your agents.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What do you want to do?
+      description: The task, and where pbidriver gets in the way or falls short today.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How could pbidriver help?
+      description: A command, option, or MCP tool you have in mind (optional).

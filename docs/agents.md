@@ -8,6 +8,11 @@ pbidriver works with any coding agent, three ways:
   one install.
 - **CLI**: plain commands that print JSON, for any agent that can run a shell command, and for scripts.
 
+!!! warning "Give agents a copy, or a git repository"
+    pbidriver is new and lets agents change report files. Keep reports in git (commit before an agent works on
+    them) or let agents work on copies. The agent instructions below and the powerbi-builder skill tell agents to
+    check this and ask you first.
+
 ## Set up (MCP, recommended)
 
 ```powershell
@@ -57,8 +62,12 @@ Power BI Desktop is driven with the `pbidriver` CLI; every call prints JSON.
 - After editing PBIP files on disk: `pbidriver reload --report-only`, then `shot` again.
 - Interact: `slicer --visual "<name>" --select "<value>" --shot`, `scroll --visual <index> --dx 1200`,
   `hover --visual <index> --text "<value>"`, `menu --visual <index> --more --choose "Sort by > <field>"`.
-- Performance: `pbidriver perf --page "<page>"`.
+- Design: `pbidriver shot --clean` (how it looks, plus layout issues); `--overlay size pos gaps align` to measure.
+- Performance: `pbidriver perf --page "<page>" --runs 3 --cold` (bottlenecks and hints).
 - When done: `pbidriver save` if the changes should be kept, then `pbidriver close --discard`.
+- pbidriver is new: before changing a report, make sure it's in git with a fresh commit or work on a copy; ask
+  the user if neither. If pbidriver misbehaves, `pbidriver bug-report --command "..." --error "..."`, show the
+  draft to the user, and file it only with their OK.
 ```
 
 ## Recipes
@@ -120,13 +129,32 @@ pbidriver read --visual "Sales by Month"
 pbidriver slicer --visual "Region" --clear
 ```
 
+### Review how a page looks
+
+```powershell
+pbidriver shot --page "Overview" --clean --scale 2          # the page as a viewer sees it, plus layout issues
+pbidriver shot --page "Overview" --overlay index size pos gaps align
+```
+
+The first returns a clean image and `layout.issues` (overlaps, edges that almost line up, uneven gaps, visuals off the page); the second draws each visual's size and position in page units, the spacing between neighbours and the near-miss edges.
+
 ### Find slow visuals
 
 ```powershell
-pbidriver perf --page "Overview" --queries
+pbidriver perf --page "Overview" --runs 3 --cold --queries
+pbidriver perf --all-pages --top 3
+pbidriver shot --page "Overview" --overlay index title perf
 ```
 
-This returns every visual sorted by total time, with DAX query, visual display and other time in milliseconds, and the DAX query each visual sent.
+`perf` returns every visual sorted by total time (medians of 3 refreshes with a cleared cache), with DAX query, visual display and other time, each visual's bottleneck, tuning hints, and the DAX query each visual sent. Time a single query before and after a measure change with `pbidriver dax "<query>" --runs 3 --cold`.
+
+### Report a pbidriver bug
+
+```powershell
+pbidriver bug-report --command "pbidriver read --visual 3" --error "<error or wrong result>" --expected "<what should happen>"
+```
+
+This drafts a GitHub issue with versions and the failing call, with personal paths and report names redacted, and returns a link to the pre-filled bug form. Nothing is sent until you open it.
 
 ### Get past startup prompts
 

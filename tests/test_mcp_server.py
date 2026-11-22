@@ -35,6 +35,16 @@ def test_schemas_are_well_formed():
     assert tools["pbi_key"]["inputSchema"]["properties"]["keys"]["type"] == "array"
     assert tools["pbi_shot"]["annotations"]["readOnlyHint"] and tools["pbi_close"]["annotations"]["destructiveHint"]
     assert "sync" in tools["pbi_refresh"]["inputSchema"]["properties"]
+    shot = tools["pbi_shot"]["inputSchema"]["properties"]
+    assert shot["overlay"]["type"] == "array" and "perf" in shot["overlay"]["items"]["enum"]
+    assert shot["clean"]["type"] == "boolean" and shot["grid_size"]["type"] == "integer"
+    perf = tools["pbi_perf"]["inputSchema"]["properties"]
+    assert {"runs", "cold", "threshold", "top", "all_pages"} <= set(perf)
+    assert {"runs", "cold"} <= set(tools["pbi_dax"]["inputSchema"]["properties"])
+    assert "command" in tools["pbi_bug_report"]["inputSchema"]["properties"]  # --command maps to `command`
+    assert tools["pbi_locate"]["annotations"]["readOnlyHint"]
+    assert "clean" in tools["pbi_add_visual"]["inputSchema"]["properties"]
+    assert "git" in tools["pbi_new"]["inputSchema"]["properties"]
 
 
 @pytest.mark.parametrize("command,args,expect", [

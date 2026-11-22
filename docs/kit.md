@@ -12,6 +12,24 @@ let an AI agent build a Power BI report end to end, in Power BI Desktop, and che
 The Modeling MCP can't create report pages or visuals, and it can't see the report; pbidriver doesn't edit the
 model. Each covers what the other can't.
 
+!!! warning "Work on a copy or in git"
+    pbidriver is new, and an agent with these tools changes real files: report JSON, the model, and saves
+    through Power BI. Keep the project in git and commit before letting an agent work on it, or give it a copy.
+    The skill tells agents to check for this and ask you first; `pbidriver new --git` starts new projects under
+    git, and results include a `caution` field while a project isn't under version control.
+
+## Find the tools
+
+| | pbidriver | Power BI Modeling MCP |
+|---|---|---|
+| Install | `pip install pbidriver` (or `uvx pbidriver@latest`, `npx -y pbidriver@latest`) | VS Code extension [`analysis-services.powerbi-modeling-mcp`](https://marketplace.visualstudio.com/items?itemName=analysis-services.powerbi-modeling-mcp): `code --install-extension analysis-services.powerbi-modeling-mcp`, or search "Power BI Modeling MCP" in VS Code's Extensions view (Ctrl+Shift+X). Other clients: `npx -y @microsoft/powerbi-modeling-mcp@latest --start` |
+| Where it is | `pbidriver locate` | `pbidriver locate` (the exe is in `%USERPROFILE%\.vscode\extensions\analysis-services.powerbi-modeling-mcp-<version>-win32-x64\server\`) |
+| In VS Code | Command Palette > "MCP: List Servers" > `pbidriver` (from `.vscode/mcp.json`) | Command Palette > "MCP: List Servers" > "Power BI Modeling MCP Server" |
+| In Claude Code / Cursor / Codex | `/mcp` / Settings > MCP / `codex mcp list` | same |
+
+`pbidriver locate` returns all of this as JSON (agents have it as the `pbi_locate` tool), including how each
+MCP client will start the two servers. `pbidriver doctor` checks that they actually work.
+
 ## Set up in one command
 
 In the folder where your agent works (your report project, or an empty folder):
@@ -84,8 +102,10 @@ The skill and the `pbi_guide` tool teach this loop:
 3. `pbi_refresh sync=true`: saves, reloads the project so Power BI picks up the new tables, refreshes, saves.
 4. `pbi_add_visual` for each visual, with field names checked against the live model; `shot=true` returns an
    annotated screenshot. `pbi_add_page` for more pages.
-5. `pbi_shot`, `pbi_read` (the numbers each visual shows) and `pbi_dax` to verify; `pbi_alerts` must be empty.
-6. `pbi_save`.
+5. `pbi_read` (the numbers each visual shows) and `pbi_dax` to verify; `pbi_alerts` must be empty.
+6. `pbi_shot clean=true` to review the design, with a layout check (overlaps, edges that almost line up,
+   uneven gaps); `overlay=[size, pos, grid, gaps, align]` to measure; `pbi_perf runs=3 cold=true` for speed.
+7. `pbi_save`.
 
 Every pbidriver result is JSON; screenshots come back as images the agent can look at. Errors say what to do
 next, and `alerts` reports anything that blocks Power BI (dialogs, banners, broken visuals) on every call.
@@ -102,6 +122,16 @@ closes, reopens and checks the data survived: 42 checks, about 100 seconds.
 pip install mcp
 python scripts/e2e_kit.py --clean
 ```
+
+## When something goes wrong
+
+If pbidriver crashes or returns something wrong, agents draft a bug report with `pbi_bug_report`: your
+versions, the failing call and the error, with your home folder, user name, report names and other paths
+redacted. They show you the draft and file it at
+[github.com/speak2jerome/pbidriver/issues](https://github.com/speak2jerome/pbidriver/issues) only with your OK
+(a pre-filled link to the bug form, or `gh issue create`). You can do the same:
+`pbidriver bug-report --command "..." --error "..."`. Modeling MCP problems go to
+[microsoft/powerbi-modeling-mcp](https://github.com/microsoft/powerbi-modeling-mcp/issues).
 
 ## Things worth knowing
 

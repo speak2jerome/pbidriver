@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
-r"""pbidriver: WebDriver for Power BI Desktop. See and drive it from AI agents.
+r"""pbidriver: WebDriver for Power BI Desktop. Build, see and drive reports from AI agents.
 
 Power BI Desktop draws its UI in WebView2 (Chromium) pages, one per view. Started with a
 DevTools port, those pages can be captured pixel-for-pixel and driven with real input:
 report canvas and single visuals, the Table/Model/DAX/TMDL views, slicers, scrolling.
 Blocking dialogs (WebView2, native and legacy IE ones) are detected, read and answered.
+PBIP projects can be created and given pages and visuals; the model is built with Microsoft's
+Power BI Modeling MCP. `pbidriver mcp` serves every command as an MCP tool.
 
 Instances without DevTools still get page/visual captures, reloads and state through Microsoft's
 Desktop Bridge (Power BI Desktop June 2026+), and DAX queries through the bundled ADOMD.NET client.
+
+pbidriver is a new tool: work on a copy of a report, or keep it in git and commit before changing it.
+Found a bug? `pbidriver bug-report` drafts an issue for https://github.com/speak2jerome/pbidriver.
 
 Every command prints one JSON object: {"ok": true, ...} or {"ok": false, "error": ...}.
 Commands that touch the UI also return "alerts" (dialogs, banners, broken visuals) when any exist.
@@ -16,10 +21,13 @@ Commands that touch the UI also return "alerts" (dialogs, banners, broken visual
   instances | status | pages | alerts
   visuals [--page P] [--all-pages]      live visual list: type, label, box, text, error
   inventory [--file F]                  pages, visuals, fields, filters, bookmarks from the report file
-  shot [--page P] [--visual V | --all-visuals | --full] [--view table|model|dax|tmdl] [--annotate] [--bridge]
+  shot [--page P] [--visual V | --all-visuals | --full] [--view table|model|dax|tmdl] [--bridge]
+       [--clean | --annotate | --overlay index type title size pos errors perf grid align gaps overlap all]
   read [--visual V]                     data behind visuals: chart points, cards, tables/matrices, slicers
-  dax "EVALUATE ..." | model            query the model / list tables, columns, measures, relationships
-  perf [--page P] [--queries]           Performance Analyzer timings per visual
+  dax "EVALUATE ..." [--runs N --cold] | model     query (and time) the model / list its tables, measures...
+  perf [--page P | --all-pages] [--runs N] [--cold] [--queries]   Performance Analyzer, bottlenecks, hints
+  new | layout | add-page | add-visual | remove-visual | save --as | refresh --sync   build PBIP reports
+  mcp | setup | doctor | locate | guide | bug-report                                 agents and the kit
   dialog [--click BUTTON | --shot]      read / answer / capture the blocking dialog
   click  [--visual V] [--text T | --at X,Y] [--ctrl] [--double] [--right] [--shot]
   hover  [--visual V] [--text T | --at X,Y] [--shot]       read the tooltip
@@ -169,7 +177,8 @@ VISUALS_JS = r"""
       custom: !!guid || !!v.querySelector('iframe.visual-sandbox'),
       label: title || aria || text.slice(0, 60),
       title,
-      box: { x: Math.round(r.x - a.x), y: Math.round(r.y - a.y), w: Math.round(r.width), h: Math.round(r.height) },
+      box: { x: Math.round((r.x - a.x) * 10) / 10, y: Math.round((r.y - a.y) * 10) / 10,
+             w: Math.round(r.width * 10) / 10, h: Math.round(r.height * 10) / 10 },
       hidden: r.width < 1 || r.height < 1,
       error_text: err ? err[0] : null,
       text: textLimit > 0 ? text.slice(0, textLimit) : text,
@@ -971,31 +980,91 @@ def shot_now(s: Session, page, label: str) -> dict:
     return {"file": str(path), "size": png_size(path), "scope": "full"}
 
 
-def annotate(path: Path, visuals: list[dict], canvas: dict) -> list[dict]:
-    """Draw each visual's index and type over a canvas capture, so it can be referred to by index."""
-    from PIL import Image, ImageDraw, ImageFont
-
-    img = Image.open(path).convert("RGB")
-    k = img.width / max(1, canvas["w"])
-    draw = ImageDraw.Draw(img)
+def page_size(port: int, page_name: str | None) -> tuple[float, float] | None:
+    """The report page's own size (PBIR units, e.g. 1280 x 720) from the saved report file."""
     try:
-        font = ImageFont.truetype("segoeuib.ttf", max(12, int(14 * k)))
-    except OSError:
-        font = ImageFont.load_default()
-    legend = []
-    for v in visuals:
-        if v["hidden"]:
+        win = pbi_window(port)
+        info = bridge.instance(win[2])
+        file = (bridge.bridge_state(win[2]).get("file") if info["bridge"] else None) or info["file"]
+        page = next((p for p in report_inventory(file)["pages"] if p["name"] == page_name), None)
+        return (float(page["width"]), float(page["height"])) if page and page.get("width") else None
+    except Exception:  # noqa: BLE001  unsaved new page, unreadable file...: fall back to canvas pixels
+        return None
+
+
+def tidy_canvas(s: Session, page) -> None:
+    """For a clean capture: no hover header, tooltip, open menu or selection outline on any visual."""
+    page.mouse.move(1, 1)
+    if not native_windows(s.port)["blocked"]:
+        page.keyboard.press("Escape")  # deselects the focused visual, closes dropdowns and menus
+        time.sleep(0.3)
+        page.mouse.move(1, 1)
+
+
+def canvas_capture(s: Session, page, a, page_name: str | None, path: Path, items: list[str], clean: bool,
+                   scale: float = 1, perf_ms: dict | None = None) -> dict:
+    """Capture the canvas (call inside fit_canvas). With `clean`, tidy the canvas first and return the layout
+    check without drawing anything; with overlay `items`, draw them and return the legend."""
+    from pbidriver import layout as geometry
+
+    if clean:
+        tidy_canvas(s, page)
+        settle(page, a.settle, quiet_ms=800)
+    out = capture_target(page, s.cdp(page), "canvas", 0, scale, path)
+    out.update(file=str(path), size=png_size(path))
+    if not (clean or items):
+        return out
+    data = visual_list(page, 80)
+    size = page_size(s.port, page_name)
+    units, page_units = geometry.to_units(data["visuals"], data["canvas"], size)
+    out["units"] = "page" if size else "canvas px"
+    out["legend"] = geometry.legend(units, perf_ms)
+    geo = None
+    if clean or set(items) & {"grid", "align", "gaps", "overlap"}:
+        geo = geometry.layout_check(units, page_units)
+        out["layout"] = {k: v for k, v in geo.items() if k != "_gaps"}
+    if items:
+        geometry.draw(path, units, page_units, items, grid=getattr(a, "grid_size", 40) or 40, layout=geo,
+                      perf_ms=perf_ms, threshold=getattr(a, "threshold", 500) or 500)
+        out["overlay"] = items
+    return out
+
+
+_PERF_TYPE_ALIAS = {"table": "tableex", "matrix": "pivottable", "card(new)": "cardvisual", "newcard": "cardvisual"}
+
+
+def match_perf_rows(rows: list[dict], visuals: list[dict]) -> None:
+    """Set `visual_index` on Performance Analyzer rows. The analyzer names a visual by its title, or by its
+    type ('Card', 'Table') when it has none; match titles first, then types that occur once on the page."""
+    norm = lambda t: re.sub(r"\s+", "", (t or "").lower())  # noqa: E731
+    shown = [v for v in visuals if not v["hidden"]]
+    titles: dict[str, list[int]] = {}
+    for v in shown:
+        if v["title"]:
+            titles.setdefault(v["title"], []).append(v["index"])
+    untitled_types: dict[str, list[int]] = {}
+    for v in shown:
+        if not v["title"]:
+            untitled_types.setdefault(norm(v["type"]), []).append(v["index"])
+    names = [r["name"] for r in rows]
+    for r in rows:
+        if len(titles.get(r["name"], [])) == 1:
+            r["visual_index"] = titles[r["name"]][0]
             continue
-        b = v["box"]
-        x0, y0, x1, y1 = b["x"] * k, b["y"] * k, (b["x"] + b["w"]) * k, (b["y"] + b["h"]) * k
-        draw.rectangle([x0, y0, x1, y1], outline=(230, 30, 60), width=max(2, int(2 * k)))
-        tag = f"{v['index']} {v['type']}"
-        tw, th = draw.textbbox((0, 0), tag, font=font)[2:]
-        draw.rectangle([x0, y0, x0 + tw + 8, y0 + th + 6], fill=(230, 30, 60))
-        draw.text((x0 + 4, y0 + 2), tag, fill="white", font=font)
-        legend.append({"index": v["index"], "type": v["type"], "label": v["label"]})
-    img.save(path)
-    return legend
+        t = norm(r["name"])
+        t = _PERF_TYPE_ALIAS.get(t, t)
+        if len(untitled_types.get(t, [])) == 1 and names.count(r["name"]) == 1:
+            r["visual_index"] = untitled_types[t][0]
+
+
+def perf_by_visual(s: Session, page, a) -> tuple[dict, list[str]]:
+    """Render time per visual index (Performance Analyzer, one refresh) for the perf overlay."""
+    rows = perf_summary(_perf_measure(s, page, a), getattr(a, "threshold", 500))
+    match_perf_rows(rows, visual_list(page, 1)["visuals"])
+    by_index = {r["visual_index"]: r["total_ms"] for r in rows
+                if "visual_index" in r and r.get("total_ms") is not None}
+    unmatched = [r["name"] for r in rows if "visual_index" not in r]
+    return by_index, unmatched
 
 
 def mouse_click(page, x: float, y: float, a) -> None:
@@ -1314,16 +1383,30 @@ def cmd_shot(a) -> dict:
             return with_alerts({"view": a.view, "scope": "view", "restored_from_minimized": restored,
                                 "file": str(path), "size": png_size(path)}, s, (a.view,))
 
+        from pbidriver import layout as geometry
+
+        try:
+            items = geometry.expand(a.overlay) or (["index", "type"] if a.annotate else [])
+        except ValueError as e:
+            raise DriverError(str(e)) from e
+        if a.clean and items:
+            raise DriverError("--clean captures without overlays; drop --annotate/--overlay (the result still "
+                              "has the legend and a layout check).")
+        if items and (a.visual is not None or a.all_visuals or a.full):
+            raise DriverError("Overlays are drawn on canvas captures only; drop --visual/--all-visuals/--full.")
         rp, cdp = s.report, s.cdp(s.report)
         if restored:
             settle(rp, a.settle)
         page = goto_page(rp, a.page, a.settle)
         require_canvas(rp)
+        perf_ms, unmatched = (perf_by_visual(s, rp, a) if "perf" in items else (None, []))
         # Park the (synthetic) pointer on the title bar so no hover headers/tooltips show on visuals.
         rp.mouse.move(1, 1)
         settle(rp, a.settle, quiet_ms=300)
         base = base or default_out(page["name"])
         result: dict = {"view": "report", "page": page["name"], "restored_from_minimized": restored}
+        if unmatched:
+            result["perf_unmatched"] = unmatched  # Performance Analyzer names these by an ambiguous or missing title
 
         if a.full:
             path = as_png(base)
@@ -1353,11 +1436,10 @@ def cmd_shot(a) -> dict:
                               visual={k: v[k] for k in ("index", "type", "label", "box", "error_text", "text")})
             else:
                 path = as_png(base)
-                result.update(capture_target(rp, cdp, "canvas", 0, a.scale, path))
-                result.update(scope="canvas", file=str(path), size=png_size(path))
-                if a.annotate:
-                    data = visual_list(rp, 80)
-                    result["legend"] = annotate(path, data["visuals"], data["canvas"])
+                result["scope"] = "canvas"
+                result.update(canvas_capture(s, rp, a, page["name"], path, items, a.clean, a.scale, perf_ms))
+                if a.clean:
+                    result["clean"] = True
         return with_alerts(result, s)
 
 
@@ -1990,73 +2072,177 @@ def _set_clipboard_text(text: str) -> None:
         return
 
 
+PERF_KEYS = ("total_ms", "dax_query_ms", "visual_display_ms", "other_ms", "direct_query_ms", "parameters_ms")
+PERF_HINTS = {
+    "dax_query": "DAX query is the bottleneck: get the query (queries=true), time it cold with `dax --runs 3 --cold`, "
+                 "and simplify the measures it uses (variables, fewer iterations over big tables, no FILTER over whole "
+                 "tables) or show less detail. The Power BI Modeling MCP's dax_query_operations Execute with "
+                 "GetExecutionMetrics shows storage engine vs formula engine time.",
+    "direct_query": "DirectQuery is the bottleneck: the source database is slow for this query; aggregate in the source, "
+                    "add an aggregation table, or switch the table to Import.",
+    "visual_display": "Rendering is the bottleneck: the visual draws too many points or is complex; limit categories "
+                      "(Top N filter), avoid high-cardinality axes, or use a simpler visual.",
+    "other": "Waiting is the bottleneck: the visual waits for others on the page (each visual sends its own query); "
+             "use fewer visuals per page, combine cards into one new card (cardVisual), or move detail to another page.",
+}
+
+
+def _perf_refresh(page, a, pid: int | None, cold: bool) -> list[dict]:
+    """One 'Refresh visuals' in Performance Analyzer (pane open and recording); rows with the breakdown."""
+    button = lambda t: page.locator(f"{PERF_PANE} button", has_text=t).first  # noqa: E731
+    if button("Clear").count() and button("Clear").is_enabled():
+        button("Clear").click()
+        time.sleep(0.5)
+    if cold:
+        bridge.clear_cache(pid)
+    button("Refresh visuals").click()
+    time.sleep(1.5)
+    settle(page, a.settle, quiet_ms=1500)
+    rows: list[dict] = []
+    previous, deadline = None, time.time() + a.settle
+    while time.time() < deadline:  # wait until every visual has a duration and nothing changes
+        rows = page.evaluate(PERF_JS) or []
+        sig = [(r["name"], r["total_ms"]) for r in rows]
+        if rows and sig == previous and all(r["total_ms"] is not None for r in rows):
+            break
+        previous = sig
+        time.sleep(1)
+    lifecycle = page.locator(f"{PERF_PANE} tr.visualLifecycle")
+    for i in range(lifecycle.count()):
+        row = lifecycle.nth(i)
+        if "itemCollapsed" in (row.get_attribute("class") or ""):
+            row.click()
+            time.sleep(0.15)
+    return page.evaluate(PERF_JS) or []
+
+
+def _perf_measure(s, page, a, runs: int = 1, cold: bool = False, queries: bool = False) -> list[list[dict]]:
+    """Open Performance Analyzer, refresh the visuals `runs` times (clearing the model cache first when
+    `cold`), optionally copy each visual's DAX query on the last run, and close the pane again."""
+    button = lambda t: page.locator(f"{PERF_PANE} button", has_text=t).first  # noqa: E731
+    win = pbi_window(s.port)
+    pid = win[2] if win else None
+    if cold and not pid:
+        raise DriverError("Couldn't find the Power BI process to clear its cache.")
+    all_runs: list[list[dict]] = []
+    with ribbon_restored(page):
+        opened = ensure_toggle(page, "Optimize", "Performance analyzer", True)
+        saved_clip = _clipboard_text() if queries else None
+        try:
+            if button("Start recording").count() and button("Start recording").is_enabled():
+                button("Start recording").click()
+                time.sleep(0.8)
+            for _ in range(max(1, runs)):
+                all_runs.append(_perf_refresh(page, a, pid, cold))
+            if queries:
+                copy_buttons = page.locator(f"{PERF_PANE} button.copyBtn")  # one per visual, in row order
+                for r in all_runs[-1]:
+                    if r["copy"] is None:
+                        continue
+                    b = copy_buttons.nth(r["copy"])
+                    if not b.count() or not b.is_enabled():
+                        r["query"] = None  # Power BI offers no query for this visual
+                        continue
+                    _set_clipboard_text("")
+                    b.click()
+                    for _ in range(15):  # the copy lands asynchronously
+                        time.sleep(0.15)
+                        r["query"] = _clipboard_text() or None
+                        if r["query"]:
+                            break
+            if button("Stop").count() and button("Stop").is_enabled():
+                button("Stop").click()
+        finally:
+            if queries:
+                _set_clipboard_text(saved_clip or "")
+            if opened:
+                ensure_toggle(page, "Optimize", "Performance analyzer", False)
+    return all_runs
+
+
+def perf_summary(all_runs: list[list[dict]], threshold: float = 500) -> list[dict]:
+    """Median timings per visual across runs (visuals keyed by name and occurrence), with the bottleneck."""
+    import statistics
+
+    keyed: dict[tuple, list[dict]] = {}
+    for run in all_runs:
+        seen: dict[str, int] = {}
+        for r in run:
+            n = seen.get(r["name"], 0)
+            seen[r["name"]] = n + 1
+            keyed.setdefault((r["name"], n), []).append(r)
+    rows = []
+    for rs in keyed.values():
+        row = {k: v for k, v in rs[-1].items() if k not in ("expanded", "copy")}
+        for key in PERF_KEYS:
+            vals = [r[key] for r in rs if r.get(key) is not None]
+            if vals:
+                row[key] = round(statistics.median(vals))
+        if len(all_runs) > 1:
+            row["runs_ms"] = [r.get("total_ms") for r in rs]
+        parts = {"dax_query": row.get("dax_query_ms") or 0, "direct_query": row.get("direct_query_ms") or 0,
+                 "visual_display": row.get("visual_display_ms") or 0, "other": row.get("other_ms") or 0}
+        if any(parts.values()):
+            row["bottleneck"] = max(parts, key=parts.get)
+        row["slow"] = (row.get("total_ms") or 0) >= threshold
+        rows.append(row)
+    rows.sort(key=lambda r: -(r.get("total_ms") or 0))
+    return rows
+
+
+def perf_hints(rows: list[dict], visual_count: int, threshold: float) -> list[str]:
+    hints = []
+    slow = [r for r in rows if r.get("slow")]
+    for kind in PERF_HINTS:
+        names = [r["name"] for r in slow if r.get("bottleneck") == kind]
+        if names:
+            hints.append(f"{len(names)} slow visual(s) ({', '.join(names[:5])}): {PERF_HINTS[kind]}")
+    if visual_count > 15:
+        hints.append(f"The page has {visual_count} visuals; pages with more than about 15 visuals load slowly because "
+                     "every visual queries the model. Split the page or combine visuals.")
+    if not slow:
+        hints.append(f"No visual took {threshold:.0f} ms or more.")
+    return hints
+
+
+def _perf_page(s, page, a) -> dict:
+    all_runs = _perf_measure(s, page, a, a.runs, a.cold, a.queries)
+    rows = perf_summary(all_runs, a.threshold)
+    data = visual_list(page, 1)
+    match_perf_rows(rows, data["visuals"])
+    visible = sum(1 for v in data["visuals"] if not v["hidden"])
+    out = {"page": _current_page(page), "count": len(rows), "runs": len(all_runs),
+           "cache": "cold" if a.cold else "warm", "threshold_ms": a.threshold,
+           "slowest_ms": rows[0].get("total_ms") if rows else None,
+           "sum_ms": sum(r.get("total_ms") or 0 for r in rows),
+           "slow_count": sum(1 for r in rows if r.get("slow")),
+           "visuals": rows[: a.top] if a.top else rows,
+           "hints": perf_hints(rows, visible, a.threshold)}
+    return out
+
+
 def cmd_perf(a) -> dict:
     def act(s, page):
-        button = lambda t: page.locator(f"{PERF_PANE} button", has_text=t).first  # noqa: E731
-        rows: list[dict] = []
-        with ribbon_restored(page):
-            opened = ensure_toggle(page, "Optimize", "Performance analyzer", True)
-            saved_clip = _clipboard_text() if a.queries else None
-            try:
-                if button("Clear").count() and button("Clear").is_enabled():
-                    button("Clear").click()
-                    time.sleep(0.5)
-                if button("Start recording").count() and button("Start recording").is_enabled():
-                    button("Start recording").click()
-                    time.sleep(0.8)
-                button("Refresh visuals").click()
-                time.sleep(1.5)
-                settle(page, a.settle, quiet_ms=1500)
-                previous, deadline = None, time.time() + a.settle
-                while time.time() < deadline:  # wait until every visual has a duration and nothing changes
-                    rows = page.evaluate(PERF_JS) or []
-                    sig = [(r["name"], r["total_ms"]) for r in rows]
-                    if rows and sig == previous and all(r["total_ms"] is not None for r in rows):
-                        break
-                    previous = sig
-                    time.sleep(1)
-                lifecycle = page.locator(f"{PERF_PANE} tr.visualLifecycle")
-                for i in range(lifecycle.count()):
-                    row = lifecycle.nth(i)
-                    if "itemCollapsed" in (row.get_attribute("class") or ""):
-                        row.click()
-                        time.sleep(0.15)
-                rows = page.evaluate(PERF_JS) or []
-                if a.queries:
-                    copy_buttons = page.locator(f"{PERF_PANE} button.copyBtn")  # one per visual, in row order
-                    for r in rows:
-                        if r["copy"] is None:
-                            continue
-                        b = copy_buttons.nth(r["copy"])
-                        if not b.count() or not b.is_enabled():
-                            r["query"] = None  # Power BI offers no query for this visual
-                            continue
-                        _set_clipboard_text("")
-                        b.click()
-                        for _ in range(15):  # the copy lands asynchronously
-                            time.sleep(0.15)
-                            r["query"] = _clipboard_text() or None
-                            if r["query"]:
-                                break
-                if button("Stop").count() and button("Stop").is_enabled():
-                    button("Stop").click()
-            finally:
-                if a.queries:
-                    _set_clipboard_text(saved_clip or "")
-                if opened:
-                    ensure_toggle(page, "Optimize", "Performance analyzer", False)
-        titles: dict[str, list[int]] = {}
-        for v in visual_list(page, 1)["visuals"]:
-            if v["title"] and not v["hidden"]:
-                titles.setdefault(v["title"], []).append(v["index"])
-        for r in rows:
-            r.pop("expanded", None)
-            r.pop("copy", None)
-            if len(titles.get(r["name"], [])) == 1:
-                r["visual_index"] = titles[r["name"]][0]
-        rows.sort(key=lambda r: -(r["total_ms"] or 0))
-        return {"page": _current_page(page), "count": len(rows), "visuals": rows,
-                "note": "Durations in ms from Power BI's Performance Analyzer (one refresh of the page)."}
+        if not a.all_pages:
+            result = _perf_page(s, page, a)
+            result["note"] = (f"Durations in ms from Power BI's Performance Analyzer, median of {result['runs']} "
+                              f"refresh(es), {result['cache']} cache.")
+            return result
+        start = _current_page(page)
+        pages = []
+        for p in page.evaluate(PAGES_JS) or []:
+            if p.get("hidden"):
+                continue
+            goto_page(page, p["name"], a.settle)
+            r = _perf_page(s, page, a)
+            r["visuals"] = r["visuals"][: a.top or 5]
+            pages.append(r)
+        if start:
+            goto_page(page, start, a.settle)
+        pages.sort(key=lambda r: -(r["slowest_ms"] or 0))
+        return {"pages": pages, "count": len(pages),
+                "note": f"Slowest pages first; up to {a.top or 5} slowest visuals per page. Durations in ms, "
+                        f"median of {a.runs} refresh(es), {'cold' if a.cold else 'warm'} cache."}
     return _interaction(a, act)
 
 
@@ -2072,10 +2258,29 @@ def cmd_dax(a) -> dict:
     else:
         raise DriverError("Give a DAX query, --file query.dax, or - to read it from stdin.")
     pid = resolve_pid(a)
-    r = bridge.run_dax(pid, [query], a.max_rows, a.timeout)[0]
-    if not r.get("ok"):
-        raise DriverError("DAX error: " + str(r.get("error")))
-    return {"pid": pid, **{k: r[k] for k in ("columns", "rows", "row_count", "truncated", "ms")}}
+    runs = max(1, getattr(a, "runs", 1) or 1)
+    cold = bool(getattr(a, "cold", False))
+    batch: list[str] = []
+    for _ in range(runs):
+        if cold:
+            batch.append(bridge.CLEAR_CACHE)
+        batch.append(query)
+    results = bridge.run_dax(pid, batch, a.max_rows, a.timeout)
+    failed = next((r for r in results if not r.get("ok")), None)
+    if failed:
+        raise DriverError(("" if "ClearCache" in str(failed.get("error")) else "DAX error: ") + str(failed.get("error")))
+    timed = [r for r in results if not r.get("cleared")]
+    r = timed[0]
+    out = {"pid": pid, **{k: r[k] for k in ("columns", "rows", "row_count", "truncated", "ms")}}
+    if runs > 1 or cold:
+        import statistics
+
+        ms = [t["ms"] for t in timed]
+        out["timing"] = {"runs": runs, "cache": "cold" if cold else "warm", "ms": ms, "min": min(ms),
+                         "median": round(statistics.median(ms)), "max": max(ms)}
+        if not cold:
+            out["timing"]["note"] = "Warm runs reuse the engine cache; the first may still fill it. Add --cold to clear it before every run."
+    return out
 
 
 def cmd_model(a) -> dict:
@@ -2276,7 +2481,8 @@ def cmd_save(a) -> dict:
         if a.as_path:
             if not pid:
                 raise DriverError("Couldn't find the Power BI window.")
-            return with_alerts(_save_as(s, a, pid), s)
+            saved_as = _save_as(s, a, pid)
+            return with_alerts(with_caution(saved_as, saved_as.get("file") or a.as_path), s)
         has_bridge = bool(pid and bridge.instance(pid)["bridge"])
         before = bridge.bridge_state(pid)["unsaved"] if has_bridge else None
         # Ctrl+S is a host accelerator that DevTools key events never reach; the title bar's Save
@@ -2300,6 +2506,7 @@ def cmd_save(a) -> dict:
                 break
         result = {"saved": saved, "had_unsaved_changes": before, "file": report_file(a.port),
                   "seconds": round(time.time() - t0, 1)}
+        with_caution(result, result["file"])
         if saved is None:
             result["note"] = ("Save is still running or waiting for a dialog; check `alerts`." if has_bridge
                               else "No Desktop Bridge on this build, so the save could not be confirmed.")
@@ -2423,6 +2630,7 @@ def _model_fields(a, rep) -> tuple[dict, str]:
 
 def _after_edit(a, result: dict, page_name: str | None) -> dict:
     """--reload / --shot: have Power BI pick up the edited files, then capture the page."""
+    with_caution(result, result.get("file") or result.get("report"))
     if not (getattr(a, "reload", False) or getattr(a, "shot", False)):
         result["next"] = "Run `pbidriver reload --report-only` to see the change in Power BI."
         return result
@@ -2441,11 +2649,13 @@ def _after_edit(a, result: dict, page_name: str | None) -> dict:
                 settle(s.report, a.settle, quiet_ms=400)
                 out = getattr(a, "out", None)
                 path = as_png(Path(out).expanduser().resolve() if out else default_out(page["name"]))
+                clean = bool(getattr(a, "clean", False))
                 with fit_canvas(s.report, s.cdp(s.report), a.settle):
-                    capture_target(s.report, s.cdp(s.report), "canvas", 0, 1, path)
-                    data = visual_list(s.report, 80)
-                    result["legend"] = annotate(path, data["visuals"], data["canvas"])
-                result["shot"] = {"file": str(path), "size": png_size(path)}
+                    shot = canvas_capture(s, s.report, a, page["name"], path, [] if clean else ["index", "type"], clean)
+                result["legend"] = shot.pop("legend", None)
+                if "layout" in shot:
+                    result["layout"] = shot.pop("layout")
+                result["shot"] = {k: shot[k] for k in ("file", "size")}
                 return with_alerts(result, s)
         a.page, a.visual, a.all_visuals, a.full, a.bridge, a.view, a.scale = page_name, None, False, False, True, "report", 1
         a.out = getattr(a, "out", None)
@@ -2460,6 +2670,12 @@ def cmd_new(a) -> dict:
         raise DriverError(f"Port {a.port} already has a Power BI window with DevTools. Pass another --port "
                           "(each window needs its own), or close that one first.")
     out = project.new_project(a.folder, a.name, page=a.page_name, width=a.width, height=a.height)
+    if a.git:
+        from pbidriver import kit
+
+        out["git"] = kit.git_init(Path(out["pbip"]).parent, f"New Power BI project {a.name} (pbidriver new)")
+    else:
+        with_caution(out, out["pbip"])
     if a.open:
         a.file = out["pbip"]
         out["launch"] = cmd_launch(a)
@@ -2529,6 +2745,7 @@ def cmd_remove_visual(a) -> dict:
 
     rep = _project_report(a)
     out = project.remove_visual(rep, a.page, a.id)
+    out.setdefault("report", str(rep))
     return _after_edit(a, out, out["page"])
 
 
@@ -2635,7 +2852,9 @@ def cmd_wait(a) -> dict:
 def build_parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--port", type=int, default=DEFAULT_PORT, help=f"DevTools port (default {DEFAULT_PORT}, env PBIDRIVER_PORT)")
-    common.add_argument("--settle", type=float, default=20, help="max seconds to wait for rendering to finish (default 20)")
+    common.add_argument("--settle", type=float, default=float(os.environ.get("PBIDRIVER_SETTLE", "20")),
+                        help="max seconds to wait for rendering to finish (default 20, env PBIDRIVER_SETTLE); "
+                             "lower it for faster commands on light pages")
     common.add_argument("--pid", type=int, help="Power BI process id (see `instances`); for Bridge and model commands")
 
     report_inter = argparse.ArgumentParser(add_help=False)
@@ -2698,7 +2917,20 @@ def build_parser() -> argparse.ArgumentParser:
     what.add_argument("--full", action="store_true", help="capture the whole Power BI UI instead of only the canvas")
     s.add_argument("--scale", type=float, default=1, help="resolution multiplier, e.g. 2 (default 1)")
     s.add_argument("--out", help="output .png path (or folder with --all-visuals). Default: ./pbidriver_shots/<time>_<name>")
-    s.add_argument("--annotate", action="store_true", help="draw each visual's index and type on the canvas capture")
+    s.add_argument("--annotate", action="store_true", help="draw each visual's index and type on the canvas capture "
+                                                           "(same as --overlay index type)")
+    s.add_argument("--overlay", nargs="+", metavar="ITEM",
+                   choices=["index", "type", "title", "size", "pos", "errors", "perf", "grid", "align", "gaps",
+                            "overlap", "all"],
+                   help="what to draw on the canvas capture: index, type, title, size, pos (page units), errors, "
+                        "perf (render ms, runs Performance Analyzer), grid, align (near-miss edges), gaps (spacing), "
+                        "overlap, or all (everything but perf)")
+    s.add_argument("--clean", action="store_true",
+                   help="for judging the design: no overlays, no selection, hover or open menus; still returns the "
+                        "legend and a layout check (overlaps, near-misses, uneven gaps)")
+    s.add_argument("--grid-size", type=int, default=40, help="grid spacing in page units for --overlay grid (default 40)")
+    s.add_argument("--threshold", type=float, default=500,
+                   help="ms from which --overlay perf marks a visual red (default 500)")
     s.add_argument("--bridge", action="store_true", help="capture through the Desktop Bridge (automatic when there is no DevTools)")
     s.set_defaults(func=cmd_shot)
 
@@ -2712,6 +2944,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--file", help="read the query from a .dax file")
     s.add_argument("--max-rows", type=int, default=1000, help="max rows returned (default 1000)")
     s.add_argument("--timeout", type=int, default=120, help="query timeout in seconds (default 120)")
+    s.add_argument("--runs", type=int, default=1, help="run the query N times and report the timings (min/median/max)")
+    s.add_argument("--cold", action="store_true", help="clear the model engine's cache before each run (cold timings)")
     s.set_defaults(func=cmd_dax)
 
     s = sub.add_parser("model", parents=[common], help="tables, columns, measures (with DAX) and relationships")
@@ -2720,6 +2954,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("perf", parents=[common, report_inter], help="Performance Analyzer: per-visual render and query times")
     s.add_argument("--queries", action="store_true", help="also return each visual's DAX query (uses the clipboard, then restores its text)")
+    s.add_argument("--runs", type=int, default=1, help="refresh the visuals N times and report medians (default 1)")
+    s.add_argument("--cold", action="store_true", help="clear the model engine's cache before each refresh (cold timings)")
+    s.add_argument("--threshold", type=float, default=500, help="ms from which a visual counts as slow (default 500)")
+    s.add_argument("--top", type=int, help="only the N slowest visuals")
+    s.add_argument("--all-pages", action="store_true", help="measure every visible page, slowest pages first")
     s.set_defaults(func=cmd_perf, view="report")
 
     s = sub.add_parser("bookmarks", parents=[common, report_inter], help="list bookmarks, or apply one")
@@ -2753,6 +2992,8 @@ def build_parser() -> argparse.ArgumentParser:
     after.add_argument("--shot", action="store_true",
                        help="reload (report only), then capture the page with visual indices drawn on it")
     after.add_argument("--out", help="with --shot: output .png path (default ./pbidriver_shots/<time>_<page>.png)")
+    after.add_argument("--clean", action="store_true",
+                       help="with --shot: no overlay, for judging how the page looks (adds a layout check instead)")
 
     s = sub.add_parser("new", parents=[common], help="create a blank PBIP project (PBIR report + TMDL model)")
     s.add_argument("folder", help="folder to create the project in")
@@ -2761,6 +3002,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--width", type=int, default=1280)
     s.add_argument("--height", type=int, default=720)
     s.add_argument("--open", action="store_true", help="open it with `launch` right away")
+    s.add_argument("--git", action="store_true", help="put the project under git: `git init` and a first commit")
     s.add_argument("--timeout", type=float, default=300, help="with --open: max seconds to wait for Power BI")
     s.set_defaults(func=cmd_new)
 
@@ -2861,8 +3103,20 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("guide", help="the powerbi-builder guide for agents: workflow, visuals, modeling-mcp, pbir, troubleshooting")
     s.add_argument("topic", nargs="?", default="workflow",
-                   choices=["workflow", "visuals", "modeling-mcp", "pbir", "troubleshooting"])
+                   choices=["workflow", "visuals", "design", "performance", "modeling-mcp", "pbir", "troubleshooting"])
     s.set_defaults(func=cmd_guide)
+
+    s = sub.add_parser("locate", help="where pbidriver and the Power BI Modeling MCP (VS Code extension) are, and how to install them")
+    s.set_defaults(func=cmd_locate)
+
+    s = sub.add_parser("bug-report", help="draft a GitHub issue for a pbidriver bug (redacted; nothing is sent)")
+    s.add_argument("--command", dest="bug_command", help="the pbidriver command or MCP tool call that failed")
+    s.add_argument("--error", help="the error or wrong result (e.g. the JSON pbidriver returned)")
+    s.add_argument("--expected", help="what should have happened")
+    s.add_argument("--details", help="anything else: steps, how often, what you tried")
+    s.add_argument("--title", help="issue title (default: from the command and error)")
+    s.add_argument("--out", help="where to write the draft .md (default: a temp folder)")
+    s.set_defaults(func=cmd_bug_report)
 
     s = sub.add_parser("doctor", parents=[common], help="check Power BI, the Desktop Bridge, the Modeling MCP and project setup")
     s.add_argument("--project", help="project folder whose agent setup to check (default: current folder)")
@@ -2899,6 +3153,28 @@ def cmd_guide(a) -> dict:
     path = Path(__file__).with_name("skill") / "powerbi-builder" / mcp_server.GUIDE_TOPICS[a.topic]
     return {"topic": a.topic, "file": str(path), "topics": list(mcp_server.GUIDE_TOPICS),
             "text": mcp_server._guide(a.topic)}
+
+
+def cmd_locate(a) -> dict:
+    from pbidriver import kit
+
+    return kit.locate()
+
+
+def cmd_bug_report(a) -> dict:
+    from pbidriver import kit
+
+    return kit.bug_report(a.bug_command, a.error, a.expected, a.title, a.details, a.out)
+
+
+def with_caution(result: dict, path) -> dict:
+    """Add a `caution` to results of commands that change project files outside version control."""
+    from pbidriver import kit
+
+    note = kit.vcs_caution(path)
+    if note:
+        result["caution"] = note
+    return result
 
 
 def cmd_doctor(a) -> dict:

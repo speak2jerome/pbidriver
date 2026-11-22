@@ -1,6 +1,6 @@
 ---
 name: powerbi-builder
-description: Build, change and verify Power BI reports end to end in Power BI Desktop. Use pbidriver (pbi_* tools or the pbidriver CLI) for projects, pages, visuals, screenshots, on-screen numbers, slicers, dialogs, refresh and save. Use Microsoft's Power BI Modeling MCP (table_operations, measure_operations, relationship_operations, ...) for the semantic model. Use when asked to create a Power BI report or dashboard, add or fix visuals or pages, model data for Power BI, or check what a Power BI report shows.
+description: Build, change and verify Power BI reports end to end in Power BI Desktop. Use pbidriver (pbi_* tools or the pbidriver CLI) for projects, pages, visuals, screenshots, design review, performance tuning, on-screen numbers, slicers, dialogs, refresh and save. Use Microsoft's Power BI Modeling MCP (table_operations, measure_operations, relationship_operations, ...) for the semantic model. Use when asked to create a Power BI report or dashboard, add or fix visuals or pages, model data for Power BI, review how a report looks, make it faster, or check what a Power BI report shows.
 ---
 
 # Power BI builder
@@ -22,9 +22,22 @@ client started it in) unless you pass `out=<file.png>`; MCP tools also return th
 More detail (also available through the `pbi_guide` tool, `topic=` in brackets):
 
 - [Visual types, roles, field syntax and layout grid](references/visuals.md) (`visuals`)
+- [Design review: clean screenshots, overlays, layout checks](references/design-review.md) (`design`)
+- [Performance tuning: slow visuals, cold timings, DAX fixes](references/performance.md) (`performance`)
 - [Power BI Modeling MCP recipes: connect, tables, relationships, measures, date table](references/modeling-mcp.md) (`modeling-mcp`)
 - [PBIP folder layout and the PBIR visual.json format](references/pbir.md) (`pbir`)
-- [Troubleshooting: symptoms and fixes](references/troubleshooting.md) (`troubleshooting`)
+- [Troubleshooting, finding the tools, reporting bugs](references/troubleshooting.md) (`troubleshooting`)
+
+## First: protect the user's files
+
+pbidriver is a new tool. It writes report files, saves through Power BI and drives its UI, so a bug could
+damage a report. Before changing anything the user already has:
+
+- If the project is in git, make sure its changes are committed (`git status`); commit first if the user agrees.
+- If it isn't, ask the user: put it under git (`git init`, `git add -A`, `git commit -m "Before pbidriver"`) or
+  work on a copy (copy the .pbix, or the whole PBIP folder). Don't go ahead without one of the two.
+- New projects: `pbi_new ... git=true` starts them under git.
+- Results of commands that change files carry a `caution` field while the project isn't under version control.
 
 ## Build a new report from data
 
@@ -56,11 +69,14 @@ More detail (also available through the `pbi_guide` tool, `topic=` in brackets):
    `reload=true` and `shot=true` reload the report only: measures and tables you just made with the Modeling
    MCP stay, unsaved, and show up at once. Visual edits are written to disk right away, so a later `pbi_save`
    may report `had_unsaved_changes: false`; that's expected.
-7. **Verify, don't assume.** Look at the screenshot: titles, overlaps, truncated labels, empty visuals. Then
-   `pbi_read` gives the numbers each visual shows; compare a few with `pbi_dax`. A visual can render without
-   errors and still be wrong (a missing relationship repeats the grand total on every row; a column summed
-   instead of counted). `pbi_alerts` must come back empty.
-8. **Save.** `pbi_save`. Writes the report, the model (TMDL) and the data cache to the project folder.
+7. **Verify, don't assume.** `pbi_read` gives the numbers each visual shows; compare a few with `pbi_dax`. A
+   visual can render without errors and still be wrong (a missing relationship repeats the grand total on every
+   row; a column summed instead of counted). `pbi_alerts` must come back empty.
+8. **Review the design.** `pbi_shot clean=true` shows the page as a viewer sees it (no labels or selection)
+   and returns `layout.issues`: overlaps, edges that almost line up, uneven gaps. Fix them; `overlay=[...]`
+   draws sizes, positions, a grid, gaps and alignment (`pbi_guide topic=design`).
+9. **Check speed** on bigger models: `pbi_perf runs=3 cold=true`; fix slow visuals (`pbi_guide topic=performance`).
+10. **Save.** `pbi_save`. Writes the report, the model (TMDL) and the data cache to the project folder.
 
 ## Work on an existing report
 
@@ -75,7 +91,28 @@ More detail (also available through the `pbi_guide` tool, `topic=` in brackets):
   and then `pbi_reload report_only=true`.
 - Interact like a user: `pbi_slicer`, `pbi_click`, `pbi_hover` (tooltips), `pbi_menu` (context menus, e.g. sort),
   `pbi_bookmarks`, `pbi_scroll`, `pbi_type`, `pbi_key`. Add `shot=true` to see the result.
-- Performance: `pbi_perf` (Performance Analyzer timings per visual, `queries=true` for their DAX).
+- Performance: `pbi_perf` (per-visual timings, bottleneck and hints; `runs`, `cold`, `all_pages`, `queries=true`
+  for their DAX), `pbi_shot overlay=[index, perf]` to see them on the page.
+
+## When pbidriver itself goes wrong
+
+If a pbidriver command crashes (`TypeError`, `KeyError`, ...), returns nonsense, or a feature stops working after
+a Power BI update, that's a pbidriver bug. Retry once; if it persists:
+
+1. `pbi_bug_report command="<the command or tool call>" error="<the error or wrong result>" expected="..."`
+   drafts a GitHub issue for https://github.com/speak2jerome/pbidriver with the environment (versions) and with
+   paths, the user name and report names redacted. Nothing is sent.
+2. Show the draft (`title`, `body`) to the user and check `search_existing` for an issue that already exists.
+3. Only with the user's OK: open `new_issue_url` in their browser, or run `gh_command` if GitHub CLI is set up.
+   Never include report data, screenshots or file contents unless the user agrees.
+
+Problems with the Modeling MCP itself go to https://github.com/microsoft/powerbi-modeling-mcp/issues.
+
+## Finding the tools
+
+`pbi_locate` (CLI `pbidriver locate`) lists where pbidriver is installed, the Power BI Modeling MCP VS Code
+extension (`analysis-services.powerbi-modeling-mcp`, exe under `%USERPROFILE%\.vscode\extensions\`), how MCP
+clients start both, and install commands for what's missing. `pbi_doctor` checks that everything works.
 
 ## Rules
 
@@ -99,15 +136,16 @@ More detail (also available through the `pbi_guide` tool, `topic=` in brackets):
 
 | Need | Tool |
 |---|---|
-| Machine ready? | `pbi_doctor` |
+| Machine ready? Where is everything? | `pbi_doctor`, `pbi_locate` |
 | Windows, files, ports | `pbi_instances`, `pbi_status` |
 | New project / open file / convert .pbix | `pbi_new`, `pbi_launch`, `pbi_save as=` |
 | Pages and visuals in the files | `pbi_layout`, `pbi_add_page`, `pbi_add_visual`, `pbi_remove_visual`, `pbi_reload` |
-| What the report looks like | `pbi_shot` (canvas, `visual=`, `full=true`, `view=table/model/dax/tmdl`, `annotate=true`) |
+| What the report looks like | `pbi_shot` (canvas, `clean=true`, `annotate=true`, `overlay=[...]`, `visual=`, `full=true`, `view=table/model/dax/tmdl`) |
 | What the visuals show | `pbi_read`, `pbi_visuals`, `pbi_inventory` |
 | Model | `pbi_model`, `pbi_dax` (read-only checks; changes go through the Modeling MCP) |
 | Data | `pbi_refresh` |
 | Interact | `pbi_slicer`, `pbi_click`, `pbi_hover`, `pbi_menu`, `pbi_scroll`, `pbi_type`, `pbi_key`, `pbi_bookmarks`, `pbi_wait` |
 | Dialogs and problems | `pbi_alerts`, `pbi_dialog` |
-| Speed | `pbi_perf` |
+| Speed | `pbi_perf`, `pbi_dax runs= cold=true`, `pbi_shot overlay=[perf]` |
 | Finish | `pbi_save`, `pbi_close` |
+| pbidriver bug | `pbi_bug_report` (draft; file only with the user's OK) |

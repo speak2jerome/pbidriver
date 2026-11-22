@@ -30,11 +30,19 @@ Key facts:
   plus DAX and model metadata through the local Analysis Services engine.
 - Reads chart values from each data point's bound `tooltipInfo`, and table and matrix cells through ARIA grid roles,
   scrolling virtualized grids.
+- Design review: `shot --clean` captures a page as a viewer sees it and returns a layout check (overlaps, near-miss
+  alignment, uneven gaps, off-page visuals); `shot --overlay` draws index, type, title, size, position (page
+  units), errors, render time, grid, alignment, gaps and overlaps.
+- Performance tuning: `perf --runs N --cold --all-pages` (Performance Analyzer medians with a cleared engine cache,
+  per-visual bottleneck and hints); `dax --runs N --cold` times a query.
+- pbidriver is new: work on a copy or keep reports in git. `pbidriver bug-report` drafts a redacted GitHub issue for
+  https://github.com/speak2jerome/pbidriver/issues; `pbidriver locate` shows where pbidriver and the Power BI Modeling
+  MCP VS Code extension (analysis-services.powerbi-modeling-mcp) are installed.
 - Handles the dialog kinds Power BI Desktop uses (in-app WebView2, legacy floating WebView2, native WinForms, legacy
   Internet Explorer), reports them on every call as `alerts`, and answers them with `pbidriver dialog --click`.
 - Commands: launch, instances, status, pages, alerts, visuals, shot, read, inventory, model, dax, perf, slicer,
   click, hover, menu, scroll, type, key, bookmarks, wait, dialog, reload, save (--as), refresh (--sync), close, new,
-  layout, add-page, add-visual, remove-visual, mcp, setup, doctor.
+  layout, add-page, add-visual, remove-visual, mcp, setup, doctor, locate, guide, bug-report.
 - Visual types for add-visual: card, cardVisual, columnChart, clusteredColumnChart, barChart, clusteredBarChart,
   lineChart, areaChart, pieChart, donutChart, tableEx (table), pivotTable (matrix), slicer, textbox.
 - Tested on Power BI Desktop 2.152 (March 2026) and 2.159 (November 2026), Microsoft Store builds, with Power BI

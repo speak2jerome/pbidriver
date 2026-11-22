@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- **Clean screenshots for design review:** `shot --clean` captures the page as a viewer sees it (no labels, selection outline, hover header, tooltip or open menu) and returns each visual's box in page units plus a layout check: overlaps, edges that almost line up, uneven gaps, visuals off the page. `add-page`, `add-visual` and `remove-visual` take `--clean` with `--shot`.
+- **More overlays:** `shot --overlay` draws any of index, type, title, size, pos (page units), errors, perf (render time per visual, coloured against `--threshold`), grid (`--grid-size`), align, gaps, overlap, or all.
+- **Performance tuning:** `perf --runs N` (medians), `--cold` (clears the model engine's cache before each refresh), `--threshold`, `--top`, `--all-pages`; every visual gets its bottleneck (DAX query, DirectQuery, rendering, waiting) and the result has tuning hints. Untitled visuals are matched by type. `dax --runs N --cold` times a query. `PBIDRIVER_SETTLE` sets the default `--settle`.
+- **Bug reports:** `pbidriver bug-report` (MCP `pbi_bug_report`) drafts a GitHub issue with versions and the failing call, redacting the home folder, user name, report names and other paths, and returns a link to the pre-filled bug form (and a `gh issue create` command). Issue templates added. The skill, MCP instructions and AGENTS.md tell agents to draft, show the user, and file only with their OK.
+- **Finding the tools:** `pbidriver locate` (MCP `pbi_locate`) shows where pbidriver and the Power BI Modeling MCP VS Code extension are, how MCP clients start them, and install commands; `doctor` suggests `code --install-extension analysis-services.powerbi-modeling-mcp`.
+- **Caution for a new tool:** README, docs, the skill, MCP instructions and AGENTS.md recommend working on a copy or in git. Commands that change files (`new`, `add-page`, `add-visual`, `remove-visual`, `save`) add a `caution` note while a project isn't under version control, and `new --git` starts a project under git.
+- New guide topics: `design` and `performance`.
+
 ## 0.2.0 (2026-11-22)
 
 pbidriver now builds reports as well as inspecting them, and with Microsoft's Power BI Modeling MCP it's a complete kit for agents to build Power BI reports end to end.

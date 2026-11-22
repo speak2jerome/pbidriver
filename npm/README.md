@@ -4,6 +4,8 @@
 
 This npm package runs the [pbidriver](https://pypi.org/project/pbidriver/) command-line tool from Node, so it fits JavaScript projects and agents that prefer `npx`.
 
+> **⚠️ pbidriver is a new tool.** It edits Power BI project files and drives Power BI Desktop. Work on a copy of your report, or keep it in git and commit before letting an agent change it. Report bugs with `npx pbidriver bug-report` or at [GitHub](https://github.com/speak2jerome/pbidriver/issues).
+
 ```powershell
 npx pbidriver launch "C:\reports\Sales.pbix"
 npx pbidriver shot --page "Overview" --annotate

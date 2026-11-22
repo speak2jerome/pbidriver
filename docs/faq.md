@@ -73,6 +73,24 @@ No. Power BI Desktop only runs on Windows, so pbidriver needs Windows 10 or 11.
 
 pbidriver only talks to Power BI Desktop on your own machine. `launch` opens a DevTools port on `127.0.0.1`, so while that instance runs, other programs on the same machine could drive it too. Close it with `pbidriver close` when you're done. Nothing is sent anywhere else.
 
+pbidriver is also new (first released November 2026), and it changes report files and saves through Power BI. Work on a copy of your report, or keep it in git and commit before letting an agent change it, so a bug can't cost you work. `pbidriver new --git` starts new projects under git, and the agent skill tells agents to check for version control and ask you before editing.
+
+## How do I report a bug?
+
+Run `pbidriver bug-report --command "<what you ran>" --error "<what went wrong>"`. It drafts an issue with your versions and redacts your home folder, user name, report names and other paths, then gives you a link that opens the pre-filled bug form on [GitHub](https://github.com/speak2jerome/pbidriver/issues) (or a `gh issue create` command). Nothing is sent until you open it. Agents have the same tool (`pbi_bug_report`) and are told to show you the draft and file it only with your OK.
+
+## Where do I find the Power BI Modeling MCP VS Code extension?
+
+It's `analysis-services.powerbi-modeling-mcp` on the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=analysis-services.powerbi-modeling-mcp). Install it with `code --install-extension analysis-services.powerbi-modeling-mcp`, or search "Power BI Modeling MCP" in VS Code's Extensions view. `pbidriver locate` shows where it and pbidriver are installed on your machine, and `pbidriver setup` configures both for your agent.
+
+## Can an agent judge how a report looks?
+
+Yes. `pbidriver shot --clean` captures the page as a viewer sees it, with no labels, selection or hover, and lists layout problems: overlapping visuals, edges that almost line up, uneven spacing and visuals off the page. `--overlay size pos grid gaps align` draws the measurements on the page in the same units the report files use.
+
+## Can it find slow visuals?
+
+Yes. `pbidriver perf --runs 3 --cold` runs Power BI's Performance Analyzer with a cleared cache and reports each visual's time, its bottleneck (DAX query, rendering, or waiting on other visuals) and what to do about it. `--all-pages` ranks the whole report, `--overlay perf` paints the timings on the page, and `dax --runs 3 --cold` times a single query.
+
 ## Is pbidriver an ODBC driver or a data connector?
 
 No. "Driver" is meant as in WebDriver: a tool that drives an application for automation. It doesn't connect Power BI to any data source.

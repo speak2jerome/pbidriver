@@ -22,6 +22,8 @@ Run `pbidriver <command> --help` for every option. Every command prints one JSON
 | `shot --full` | The whole Power BI window contents (ribbon, panes and canvas). |
 | `shot --view table\|model\|dax\|tmdl` | The Table, Model, DAX query or TMDL view, captured without switching to it. |
 | `shot --annotate` | Draws each visual's index and type on the capture, so you can refer to "visual 18". |
+| `shot --clean` | For judging the design: no labels, selection outline, hover header, tooltip or open menu. Returns the legend (each visual's box in page units) and a layout check: `overlap`, `near_alignment` (edges 1 to 6 units apart), `uneven_gap`, `off_page`, and the usual gap. |
+| `shot --overlay ITEM ...` | Draws chosen items: `index`, `type`, `title`, `size` and `pos` (page units, as `add-visual` uses), `errors`, `perf` (render ms from Performance Analyzer, coloured against `--threshold`, default 500), `grid` (every `--grid-size` units, default 40), `align` (near-miss edges), `gaps` (spacing between neighbours), `overlap`, or `all` (everything but `perf`). Canvas captures only. |
 | `shot --scale 2` | Real 2× detail, re-rendered rather than upscaled. |
 | `shot --bridge` | Captures through Microsoft's Desktop Bridge. This happens automatically for a Power BI window that has no DevTools. |
 | `visuals [--page P] [--all-pages]` | Live list of visuals: index, type, title, position and size, text, and any error. |
@@ -35,7 +37,10 @@ Run `pbidriver <command> --help` for every option. Every command prints one JSON
 | `inventory [--file F] [--summary] [--type T]` | Every page, visual, field, filter and bookmark from the report file, with no clicking. Reads `.pbix`, `.pbit` and `.pbip`, in PBIR or legacy layout. |
 | `model [--part tables\|columns\|measures\|relationships]` | The semantic model, including each measure's DAX. |
 | `dax "EVALUATE ..." [--file q.dax] [--max-rows N]` | Runs a DAX query against the open model and returns columns and rows. |
-| `perf [--page P] [--queries]` | Performance Analyzer: per-visual total, DAX query, visual display and other time in ms, optionally with each visual's DAX query. |
+| `dax ... --runs N [--cold]` | Times the query N times (min, median, max ms). `--cold` clears the model engine's cache before each run. |
+| `perf [--page P] [--queries]` | Performance Analyzer: per-visual total, DAX query, visual display and other time in ms, each visual's `bottleneck`, `slow` flag and tuning `hints`, optionally each visual's DAX query. |
+| `perf --runs N --cold --threshold MS --top N` | Medians over N refreshes; clear the cache before each one; what counts as slow (default 500 ms); only the slowest. |
+| `perf --all-pages` | Every visible page, slowest first, with its slowest visuals. |
 
 ## Interact
 
@@ -58,11 +63,11 @@ These accept `--page`, `--view`, `--shot` (capture the result) and `--force` (ac
 
 ## Build reports (PBIP projects)
 
-These write PBIR files in the PBIP project open in Power BI (or `--project <file.pbip>`). Add `--reload` to show the change in Power BI right away, or `--shot` to reload and capture the page with visual indices drawn on it (`--out` for the file). Both reload the report only, so unsaved model changes stay. Model changes (tables, measures, relationships) go through Microsoft's [Power BI Modeling MCP](kit.md).
+These write PBIR files in the PBIP project open in Power BI (or `--project <file.pbip>`). Add `--reload` to show the change in Power BI right away, or `--shot` to reload and capture the page with visual indices drawn on it (`--out` for the file, `--clean` for an unlabelled capture with a layout check). Both reload the report only, so unsaved model changes stay. While the project isn't in git, results include a `caution` note. Model changes (tables, measures, relationships) go through Microsoft's [Power BI Modeling MCP](kit.md).
 
 | Command | What it does |
 |---|---|
-| `new FOLDER --name NAME [--open]` | Creates a blank PBIP project: report with one page, empty model. `--open` launches it and returns the model's port. |
+| `new FOLDER --name NAME [--open] [--git]` | Creates a blank PBIP project: report with one page, empty model. `--open` launches it and returns the model's port; `--git` runs `git init` and a first commit. |
 | `layout [--page P]` | Pages and visuals as stored in the files: ids, types, positions, fields. |
 | `add-page NAME [--width W --height H]` | Adds a page. |
 | `add-visual TYPE --field F ... [--page P] [--x --y --width --height] [--title T] [--sort F [--sort-dir asc]]` | Adds a visual: `card`, `cardVisual`, `clusteredColumnChart`, `columnChart`, `clusteredBarChart`, `barChart`, `lineChart`, `areaChart`, `pieChart`, `donutChart`, `tableEx` (table), `pivotTable` (matrix), `slicer` (`--mode list\|dropdown`), `textbox` (`--text`). Fields: `Table[Column]`, `[Measure]`, `Sum(Table[Column])`, optionally with a role: `Category=Sales[Region]`. Names are checked against the live model. |
@@ -88,7 +93,9 @@ These write PBIR files in the PBIP project open in Power BI (or `--project <file
 | `mcp [--no-images] [--cwd DIR]` | Runs pbidriver as an MCP server over stdio. Every command above is a tool named `pbi_<command>`; screenshots are returned as images. Also offers a `pbi_guide` tool, guide resources and two prompts (`build-report`, `review-report`). |
 | `setup [FOLDER] [--client claude\|vscode\|cursor\|codex\|all] [--runner ...] [--modeling ...] [--dry-run]` | Writes MCP configs (pbidriver and the Power BI Modeling MCP), an `AGENTS.md` section and the powerbi-builder skill into a project, without overwriting what's there. |
 | `doctor [--project FOLDER]` | Checks Power BI Desktop, running instances, the Desktop Bridge, the Modeling MCP, uv/Node and the project's agent setup. |
-| `guide [workflow\|visuals\|modeling-mcp\|pbir\|troubleshooting]` | Prints a topic of the powerbi-builder guide (the MCP tool `pbi_guide`). |
+| `guide [workflow\|visuals\|design\|performance\|modeling-mcp\|pbir\|troubleshooting]` | Prints a topic of the powerbi-builder guide (the MCP tool `pbi_guide`). |
+| `locate` | Where pbidriver and the Power BI Modeling MCP are installed (package, VS Code extension folder and exe, npx package), how MCP clients start them, links, and install commands. |
+| `bug-report [--command C] [--error E] [--expected X] [--details D] [--title T] [--out FILE]` | Drafts a GitHub issue: versions, the failing call and the error, with home folder, user name, report names and other paths redacted. Returns the draft, a link that opens the pre-filled bug form, a `gh issue create` command when GitHub CLI is installed, and a search for existing issues. Nothing is sent. |
 
 ## Common options
 
@@ -96,5 +103,5 @@ These write PBIR files in the PBIP project open in Power BI (or `--project <file
 |---|---|
 | `--port N` | DevTools port of a `launch`ed instance (default 9333, or the `PBIDRIVER_PORT` environment variable). |
 | `--pid N` | A Power BI process from `instances`, for windows you opened yourself. |
-| `--settle S` | Maximum seconds to wait for rendering to finish (default 20). |
+| `--settle S` | Maximum seconds to wait for rendering to finish (default 20, or the `PBIDRIVER_SETTLE` environment variable). Lower it for faster commands on light pages. |
 | `--out PATH` | Where to write a capture. The default is `./pbidriver_shots/`. |

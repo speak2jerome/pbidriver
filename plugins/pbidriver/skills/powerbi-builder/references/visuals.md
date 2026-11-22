@@ -2,7 +2,8 @@
 
 `pbi_add_visual` (CLI `pbidriver add-visual`) writes one visual into the PBIR files of the PBIP project open in
 Power BI (or `project=<file.pbip>`). Set `reload=true` to show it right away, or `shot=true` to reload and get an
-annotated screenshot back (`out=` picks the file). Both reload the report only, so unsaved model changes stay.
+annotated screenshot back (`out=` picks the file; add `clean=true` for an unlabelled capture with a layout check).
+Both reload the report only, so unsaved model changes stay.
 
 ## Types and roles
 
@@ -81,6 +82,7 @@ other visual types), edit the visual's `visual.json` (see `pbi_guide topic=pbir`
 
 ## Reading back
 
+- `pbi_shot clean=true`: the page as a viewer sees it, plus a layout check (see `pbi_guide topic=design`).
 - `pbi_shot annotate=true`: canvas image with each visual's index and type drawn on it. The index is what
   `visual=` means in other tools (`pbi_read visual=2`, `pbi_click visual=2 text=East`). `visual=` also takes
   text that matches one visual's title, type or content.
