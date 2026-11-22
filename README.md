@@ -1,8 +1,8 @@
 # pbidriver
 
-[![PyPI](https://img.shields.io/pypi/v/pbidriver?label=pypi&cacheSeconds=1800)](https://pypi.org/project/pbidriver/)
-[![npm](https://img.shields.io/npm/v/pbidriver?label=npm&cacheSeconds=1800)](https://www.npmjs.com/package/pbidriver)
-[![Python](https://img.shields.io/pypi/pyversions/pbidriver?cacheSeconds=1800)](https://pypi.org/project/pbidriver/)
+[![PyPI](https://img.shields.io/badge/pypi-v0.3.1-blue?logo=pypi&logoColor=white)](https://pypi.org/project/pbidriver/0.3.1/)
+[![npm](https://img.shields.io/badge/npm-v0.3.1-cb3837?logo=npm&logoColor=white)](https://www.npmjs.com/package/pbidriver/v/0.3.1)
+[![Python](https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue?logo=python&logoColor=white)](https://pypi.org/project/pbidriver/)
 [![Tests](https://github.com/speak2jerome/pbidriver/actions/workflows/tests.yml/badge.svg)](https://github.com/speak2jerome/pbidriver/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](https://github.com/speak2jerome/pbidriver/blob/main/LICENSE)
 [![Docs](https://img.shields.io/badge/docs-speak2jerome.github.io%2Fpbidriver-indigo)](https://speak2jerome.github.io/pbidriver/)
@@ -285,7 +285,7 @@ The powerbi-builder skill lives in `pbidriver/skill/` (packaged, used by `setup`
 The Tests workflow runs the offline suite on Windows with Python 3.9 to 3.14, and the npm tests, on every push and pull request.
 
 **Releasing:**
-1. Raise the version in `pbidriver/__init__.py`, `npm/package.json`, `plugins/pbidriver/.claude-plugin/plugin.json`, `CITATION.cff` and the version line in `llms.txt`; the publish workflow checks the first two match.
+1. Raise the version in `pbidriver/__init__.py`, `npm/package.json`, `plugins/pbidriver/.claude-plugin/plugin.json`, `CITATION.cff`, the version line in `llms.txt` and the PyPI and npm badges at the top of this README. `tests/test_versions.py` fails until they all match, so the Tests workflow catches anything missed.
 2. Add a `CHANGELOG.md` entry, and make sure the Tests workflow is green.
 3. Tag `vX.Y.Z` and publish a GitHub release. The Publish workflow uploads to PyPI and npm through trusted publishing; no tokens or manual publishing.
 
