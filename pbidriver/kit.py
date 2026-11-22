@@ -551,7 +551,9 @@ def bug_report(command: str | None = None, error: str | None = None, expected: s
         "modeling_mcp": (f"VS Code extension {_modeling_version(exes[0])}" if exes else "npx" if _which("npx") else "not installed"),
         "run_via": "MCP server" if os.environ.get("PBIDRIVER_MCP") else "CLI",
     }
-    first_line = _redact((error or "").strip().splitlines()[0][:90]) if error else ""
+    first_line = _redact((error or "").strip().splitlines()[0]) if error else ""
+    if len(first_line) > 90:  # cut at a word boundary
+        first_line = first_line[:90].rsplit(" ", 1)[0] + "..."
     words = (command or "").replace("pbi_", "").split()
     sub = next((w for w in words[words.index("pbidriver") + 1:] if not w.startswith("-")), None) \
         if "pbidriver" in words else (words[0] if words else None)
@@ -579,8 +581,10 @@ def bug_report(command: str | None = None, error: str | None = None, expected: s
     gh = _which("gh")
     result = {
         "title": title, "body": body, "file": str(path), "new_issue_url": url, "search_existing": search,
-        "next": "Show this draft to the user and check `search_existing` for an existing issue. File it only with "
-                "the user's OK: open `new_issue_url` in their browser" + (", or run `gh_command`." if gh else ".")
+        "next": "Show this draft to the user and check `search_existing` for an existing issue. Page, visual, "
+                "field and measure names in the command or error are NOT redacted: let the user remove any they "
+                "don't want public. File it only with the user's OK: open `new_issue_url` in their browser"
+                + (", or run `gh_command`." if gh else ".")
                 + " Don't add report data, screenshots or file names unless the user agrees.",
     }
     if gh:

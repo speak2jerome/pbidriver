@@ -49,14 +49,16 @@ the valid names: create missing measures first.
 `x`, `y`, `width`, `height` are in canvas pixels; the default canvas is 1280 x 720 (`pbi_new width= height=`
 changes it). Defaults: x=20, y=20, a third of the page wide and tall. Visuals added later sit on top.
 
-A grid that works for 1280 x 720 (20 px margins and gaps):
+A grid for 1280 x 720 with a 20-unit margin and a 20-unit gap everywhere (nothing overlaps, every edge lines up):
 
 | Row | y | height | Contents |
 |---|---|---|---|
-| Header | 10 | 50 | `textbox` title (width 900) + `slicer mode=dropdown` at x=960, width 300, height 90 |
-| KPIs | 70 | 110 | up to 4 `card`s, width 290, at x = 20, 330, 640, 950 |
-| Main | 200 | 250 | 2 charts, width 610, at x = 20 and 650 |
-| Detail | 470 | 240 | table/matrix and a chart, width 610, at x = 20 and 650 |
+| Header | 20 | 60 | `textbox` title at x=20, width 920 + `slicer mode=dropdown` at x=960, width 300 |
+| KPIs | 100 | 110 | up to 4 `card`s, width 295, at x = 20, 335, 650, 965 |
+| Main | 230 | 230 | 2 charts, width 610, at x = 20 and 650 |
+| Detail | 480 | 220 | table/matrix and a chart, width 610, at x = 20 and 650 |
+
+Three KPI cards: width 400 at x = 20, 440, 860. A full-width visual: x=20, width 1240.
 
 Keep 1 to 2 rows of 2 charts per page; move detail to a second page (`pbi_add_page`) rather than shrinking
 visuals until labels truncate. Check the screenshot after each batch.

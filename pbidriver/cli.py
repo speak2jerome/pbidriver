@@ -156,9 +156,11 @@ VISUALS_JS = r"""
   const area = document.querySelector('div.displayArea');
   if (!area) return null;
   const a = area.getBoundingClientRect();
-  const GENERIC = new Set(['', 'Image', 'Card', 'Navigating to visual', 'Can be sorted']);
+  const GENERIC = new Set(['', 'Image', 'Card', 'Navigating to visual', 'Can be sorted', 'Clear selections',
+                           'Row Selection', 'Select Row', 'Select all', 'More options', 'Filters on this visual']);
   const ERR = /can['’]t display this visual|couldn['’]t load the data|couldn['’]t retrieve the data|something['’]s wrong with one or more fields|this visual has exceeded the available resources|see details/i;
   const clean = (s) => (s || '').replace(/Scroll (up|down|left|right)/g, ' ').replace(/\s+/g, ' ').trim();
+  const plain = (s) => clean((s || '').replace(/\b(Row Selection|Select Row)\b/g, ' '));  // table a11y column
   const visuals = [...area.querySelectorAll('visual-container')].map((v, index) => {
     const box = v.querySelector('div.visualContainer') || v;
     const r = box.getBoundingClientRect();
@@ -175,7 +177,7 @@ VISUALS_JS = r"""
       index,
       type: type || 'unknown',
       custom: !!guid || !!v.querySelector('iframe.visual-sandbox'),
-      label: title || aria || text.slice(0, 60),
+      label: title || aria || plain(text).slice(0, 60),
       title,
       box: { x: Math.round((r.x - a.x) * 10) / 10, y: Math.round((r.y - a.y) * 10) / 10,
              w: Math.round(r.width * 10) / 10, h: Math.round(r.height * 10) / 10 },
@@ -980,16 +982,19 @@ def shot_now(s: Session, page, label: str) -> dict:
     return {"file": str(path), "size": png_size(path), "scope": "full"}
 
 
-def page_size(port: int, page_name: str | None) -> tuple[float, float] | None:
-    """The report page's own size (PBIR units, e.g. 1280 x 720) from the saved report file."""
+def file_page(port: int, page_name: str | None) -> tuple[tuple[float, float] | None, list[dict]]:
+    """The page's own size (PBIR units, e.g. 1280 x 720) and its visuals (id, type, exact position) from the
+    report file. A PBIP's files are current after add-visual; a .pbix's are as last saved."""
     try:
         win = pbi_window(port)
         info = bridge.instance(win[2])
         file = (bridge.bridge_state(win[2]).get("file") if info["bridge"] else None) or info["file"]
         page = next((p for p in report_inventory(file)["pages"] if p["name"] == page_name), None)
-        return (float(page["width"]), float(page["height"])) if page and page.get("width") else None
+        if not page or not page.get("width"):
+            return None, []
+        return (float(page["width"]), float(page["height"])), _inventory_visuals(page)
     except Exception:  # noqa: BLE001  unsaved new page, unreadable file...: fall back to canvas pixels
-        return None
+        return None, []
 
 
 def tidy_canvas(s: Session, page) -> None:
@@ -1015,8 +1020,9 @@ def canvas_capture(s: Session, page, a, page_name: str | None, path: Path, items
     if not (clean or items):
         return out
     data = visual_list(page, 80)
-    size = page_size(s.port, page_name)
+    size, file_visuals = file_page(s.port, page_name)
     units, page_units = geometry.to_units(data["visuals"], data["canvas"], size)
+    geometry.snap_to_file(units, file_visuals)  # exact positions and visual ids where the file agrees
     out["units"] = "page" if size else "canvas px"
     out["legend"] = geometry.legend(units, perf_ms)
     geo = None
@@ -1047,14 +1053,31 @@ def match_perf_rows(rows: list[dict], visuals: list[dict]) -> None:
         if not v["title"]:
             untitled_types.setdefault(norm(v["type"]), []).append(v["index"])
     names = [r["name"] for r in rows]
+    by_index = {v["index"]: v for v in shown}
+    taken: set = set()
     for r in rows:
         if len(titles.get(r["name"], [])) == 1:
             r["visual_index"] = titles[r["name"]][0]
             continue
         t = norm(r["name"])
         t = _PERF_TYPE_ALIAS.get(t, t)
-        if len(untitled_types.get(t, [])) == 1 and names.count(r["name"]) == 1:
-            r["visual_index"] = untitled_types[t][0]
+        candidates = untitled_types.get(t, [])
+        if len(candidates) == 1 and names.count(r["name"]) == 1:
+            r["visual_index"] = candidates[0]
+        elif len(candidates) > 1 and r.get("query"):
+            # several untitled visuals of one type (e.g. cards): the one whose text names the query's measures
+            fields = set(re.findall(r"\[([^\]]+)\]", r["query"]))
+            scores = {i: sum(f in (by_index[i]["label"] + " " + (by_index[i].get("text") or "")) for f in fields)
+                      for i in candidates if i not in taken}
+            best = max(scores.values(), default=0)
+            winners = [i for i, sc in scores.items() if sc == best]
+            if best and len(winners) == 1:
+                r["visual_index"] = winners[0]
+                taken.add(winners[0])
+    for r in rows:
+        if "visual_index" not in r and names.count(r["name"]) > 1:
+            r["note"] = ("Untitled visuals of the same type share this name: give them titles"
+                         + ("." if "query" in r else ", or use queries=true to tell apart those that query data."))
 
 
 def perf_by_visual(s: Session, page, a) -> tuple[dict, list[str]]:
@@ -2208,7 +2231,7 @@ def perf_hints(rows: list[dict], visual_count: int, threshold: float) -> list[st
 def _perf_page(s, page, a) -> dict:
     all_runs = _perf_measure(s, page, a, a.runs, a.cold, a.queries)
     rows = perf_summary(all_runs, a.threshold)
-    data = visual_list(page, 1)
+    data = visual_list(page, 300)
     match_perf_rows(rows, data["visuals"])
     visible = sum(1 for v in data["visuals"] if not v["hidden"])
     out = {"page": _current_page(page), "count": len(rows), "runs": len(all_runs),
@@ -2583,6 +2606,7 @@ def cmd_refresh(a) -> dict:
             synced["saved_after"] = bool(cmd_save(argparse.Namespace(
                 **{**vars(a), "as_path": None, "overwrite": False, "timeout": 120})).get("saved"))
         result["synced"] = synced
+        with_caution(result, report_file(a.port))  # --sync saved the project
     elif result["refreshed"] and (report_file(a.port) or "").lower().endswith(".pbip"):
         result["next"] = ("pbidriver save, before any report reload: a reload makes Power BI forget the data "
                           "changed, and the project would keep its old data.")
@@ -2698,7 +2722,7 @@ def cmd_layout(a) -> dict:
     if a.page is not None or len(pages) == 1:
         page = project.find_page(rep, a.page)
         return {"report": str(rep), "page": page, "visuals": project.list_visuals(rep, page["id"])}
-    return {"report": str(rep), "pages": pages}
+    return {"report": str(rep), "pages": [{**p, "visuals": project.list_visuals(rep, p["id"])} for p in pages]}
 
 
 def cmd_add_page(a) -> dict:

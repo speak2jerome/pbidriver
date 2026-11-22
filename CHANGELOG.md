@@ -9,6 +9,14 @@
 - **Finding the tools:** `pbidriver locate` (MCP `pbi_locate`) shows where pbidriver and the Power BI Modeling MCP VS Code extension are, how MCP clients start them, and install commands; `doctor` suggests `code --install-extension analysis-services.powerbi-modeling-mcp`.
 - **Caution for a new tool:** README, docs, the skill, MCP instructions and AGENTS.md recommend working on a copy or in git. Commands that change files (`new`, `add-page`, `add-visual`, `remove-visual`, `save`) add a `caution` note while a project isn't under version control, and `new --git` starts a project under git.
 - New guide topics: `design` and `performance`.
+- From a second fresh-agent trial (review and fix a page's layout, find the slowest visual; it succeeded):
+  - The legend uses the report file's exact positions and includes each visual's PBIR `id`.
+  - Labels skip accessibility text ("Clear selections", "Row Selection").
+  - With `perf --queries`, untitled cards are told apart by their measures.
+  - `refresh --sync` adds the `caution` note, and `layout` without `--page` lists every page's visuals.
+  - Bug-report titles end at a word.
+  - The visuals guide's layout grid no longer overlaps itself.
+  - The guides now explain how to move a visual, how CLI arguments map from MCP, the layout-check tolerances, and how to read noisy timings.
 
 ## 0.2.0 (2026-11-22)
 

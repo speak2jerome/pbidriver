@@ -13,8 +13,11 @@ Two tools, two jobs. Use both; neither can do the other's job.
 | Power BI Desktop and the report: create/open projects, pages, visuals, screenshots, the numbers on screen, slicers, clicks, dialogs, refresh, save | **pbidriver** | `pbi_new`, `pbi_launch`, `pbi_add_visual`, `pbi_shot`, `pbi_read`, `pbi_dax`, `pbi_refresh`, `pbi_save`, ... |
 
 Without MCP, every `pbi_<name>` tool is the CLI command `pbidriver <name>` (also `uvx pbidriver <name>` or
-`npx pbidriver <name>`); arguments become `--flags` (`add_visual field=[...]` is `add-visual --field ... --field ...`)
-and the output is the same JSON. `pbi_guide topic=X` is `pbidriver guide X`.
+`npx pbidriver <name>`); options become `--flags` with `-` for `_` (`report_only=true` is `--report-only`,
+`add_visual field=[...]` is `--field ... --field ...`), and the required argument is positional
+(`launch FILE`, `new FOLDER`, `add-visual TYPE`, `add-page NAME`, `remove-visual ID`, `dax "QUERY"`,
+`type TEXT`, `key KEY`). `pbidriver <command> --help` shows each command's form. The output is the same JSON.
+`pbi_guide topic=X` is `pbidriver guide X`.
 
 Screenshots are written to `./pbidriver_shots/` under the working folder (for the MCP server, the folder the
 client started it in) unless you pass `out=<file.png>`; MCP tools also return them as images.
@@ -65,7 +68,7 @@ damage a report. Before changing anything the user already has:
    Fields are checked against the live model, so typos fail fast with the valid names. Set `shot=true` on the
    last visual of a batch: it reloads the report and returns an annotated screenshot. Plan the layout on the
    1280x720 canvas first (`pbi_guide topic=visuals` has a grid). `pbi_add_page name=...` adds pages
-   (then pass `page=` to add_visual). `pbi_layout` lists visual ids; `pbi_remove_visual` deletes one.
+   (then pass `page=` to add_visual). `pbi_layout` lists the visuals and their ids; `pbi_remove_visual` deletes one.
    `reload=true` and `shot=true` reload the report only: measures and tables you just made with the Modeling
    MCP stay, unsaved, and show up at once. Visual edits are written to disk right away, so a later `pbi_save`
    may report `had_unsaved_changes: false`; that's expected.
@@ -88,7 +91,9 @@ damage a report. Before changing anything the user already has:
   `pbi_pages`, `pbi_shot page=... annotate=true` per page, `pbi_read`.
 - Model changes go through the Modeling MCP, connected as in step 2. Report changes go through
   `pbi_add_visual` / `pbi_remove_visual` / `pbi_add_page`, or by editing PBIR JSON (`pbi_guide topic=pbir`)
-  and then `pbi_reload report_only=true`.
+  and then `pbi_reload report_only=true`. `pbi_layout` lists every page's visuals with their `id` and position.
+- **Move or resize a visual:** edit `position` in
+  `<Name>.Report/definition/pages/<pageId>/visuals/<id>/visual.json`, then `pbi_reload report_only=true`.
 - Interact like a user: `pbi_slicer`, `pbi_click`, `pbi_hover` (tooltips), `pbi_menu` (context menus, e.g. sort),
   `pbi_bookmarks`, `pbi_scroll`, `pbi_type`, `pbi_key`. Add `shot=true` to see the result.
 - Performance: `pbi_perf` (per-visual timings, bottleneck and hints; `runs`, `cold`, `all_pages`, `queries=true`

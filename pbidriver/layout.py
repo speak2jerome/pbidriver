@@ -50,6 +50,24 @@ def to_units(visuals: list[dict], canvas: dict, page_size: tuple[float, float] |
     return out, (pw, ph)
 
 
+def snap_to_file(units: list[dict], file_visuals: list[dict], tol: float = 8.0) -> list[dict]:
+    """Replace measured boxes with the report file's exact numbers (and add the visual's file id) when a file
+    visual of the same type sits within `tol` units. Measured boxes are off by up to a unit from rounding."""
+    used: set = set()
+    for u in units:
+        best, best_d = None, tol
+        for f in file_visuals:
+            if f.get("id") in used or (f.get("type") and f["type"] != u["type"]):
+                continue
+            d = max(abs(f["x"] - u["x"]), abs(f["y"] - u["y"]), abs(f["w"] - u["w"]), abs(f["h"] - u["h"]))
+            if d < best_d:
+                best, best_d = f, d
+        if best is not None:
+            used.add(best.get("id"))
+            u.update(x=float(best["x"]), y=float(best["y"]), w=float(best["w"]), h=float(best["h"]), id=best.get("id"))
+    return units
+
+
 def _overlap(a: dict, b: dict) -> tuple[float, float, float, float] | None:
     x0, y0 = max(a["x"], b["x"]), max(a["y"], b["y"])
     x1, y1 = min(a["x"] + a["w"], b["x"] + b["w"]), min(a["y"] + a["h"], b["y"] + b["h"])
@@ -126,6 +144,8 @@ def legend(units: list[dict], perf_ms: dict | None = None) -> list[dict]:
     for v in units:
         item = {"index": v["index"], "type": v["type"], "label": v["label"][:80],
                 "box": [round(v["x"]), round(v["y"]), round(v["w"]), round(v["h"])]}
+        if v.get("id"):
+            item["id"] = v["id"]  # the visual's folder in the PBIR files (for pbi_remove_visual or editing visual.json)
         if v.get("error"):
             item["error"] = v["error"]
         if perf_ms and v["index"] in perf_ms:

@@ -30,6 +30,16 @@ def test_to_units_scales_dom_pixels_to_page_units():
     assert page == (1920, 1080) and us[0]["x"] == 30  # unknown page size: canvas pixels
 
 
+def test_snap_to_file_uses_exact_positions_and_ids():
+    us, page = units(v(0, 20.3, 19.6, 599.2, 250.4, "donutChart"), v(1, 700, 300, 100, 100, "card"))
+    file_visuals = [{"id": "aaa", "type": "donutChart", "x": 20, "y": 20, "w": 600, "h": 250},
+                    {"id": "bbb", "type": "card", "x": 900, "y": 300, "w": 100, "h": 100}]  # moved since: no match
+    layout.snap_to_file(us, file_visuals)
+    assert (us[0]["x"], us[0]["w"], us[0]["id"]) == (20, 600, "aaa")
+    assert "id" not in us[1] and us[1]["x"] == 700
+    assert layout.legend(us)[0]["id"] == "aaa"
+
+
 def test_clean_grid_has_no_issues():
     us, page = units(v(0, 20, 20, 300, 100), v(1, 340, 20, 300, 100), v(2, 20, 140, 620, 200))
     geo = layout.layout_check(us, page)
@@ -101,3 +111,12 @@ def test_perf_rows_match_titles_then_unique_types():
     got = {r["name"]: r.get("visual_index") for r in rows}
     assert got["Revenue by region"] == 0 and got["Table"] == 1 and got["Text box"] == 4 and got["Matrix"] == 5
     assert got["Card"] is None and got["Gauge"] is None  # two cards: ambiguous; no gauge on the page
+    assert all("note" in r for r in rows if r["name"] == "Card")
+
+    # with queries (perf queries=true), cards are told apart by the measures they query
+    cards = [{**v(2, 0, 0, 1, 1, "card"), "label": "Total Revenue $156K."},
+             {**v(3, 0, 0, 1, 1, "card"), "label": "Total Units 6,207."}]
+    rows = [{"name": "Card", "query": "EVALUATE ROW(\"x\", 'Sales'[Total Units])"},
+            {"name": "Card", "query": "DEFINE VAR v = 1 EVALUATE ROW(\"y\", [Total Revenue])"}]
+    cli.match_perf_rows(rows, cards)
+    assert [r.get("visual_index") for r in rows] == [3, 2]

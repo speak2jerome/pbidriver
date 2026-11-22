@@ -15,7 +15,19 @@ there is DirectQuery, the `bottleneck` (the largest part), `slow` (at or over `t
 | `all_pages=true` | every visible page, slowest first, top visuals per page |
 | `queries=true` | each visual's DAX query (copied through the clipboard, which is restored) |
 
+Performance Analyzer names a visual by its title, or by its type ("Card", "Table") when it has none. Rows carry
+`visual_index` when the visual is clear; several untitled visuals of one type are told apart only with
+`queries=true` (by the measures in their query), so give important visuals titles.
+
 `pbi_shot overlay=[index, title, perf]` paints each visual's render time on the page.
+
+### Reading the numbers
+
+- Timings vary from run to run (often by 30% or more on small pages), so compare medians of the same `runs` and
+  `cold` settings. On a page where everything is under a few hundred ms, the order of the slowest visuals is
+  mostly noise; say so rather than ranking them.
+- Nothing slow (`slow_count` 0): report `slowest_ms`, `sum_ms` and the threshold, and that no change is needed.
+- `other` (waiting) grows with the number of visuals on the page; it isn't the visual's own fault.
 `pbi_dax query=... runs=3 cold=true` times one query cold (min, median, max), for comparing a measure before
 and after a change.
 
