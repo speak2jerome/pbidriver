@@ -4,5 +4,5 @@ The command line lives in pbidriver.cli; pbidriver.bridge talks to Microsoft's D
 the local model, and pbidriver.definition reads report files.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __author__ = "Jerome Eliezer"

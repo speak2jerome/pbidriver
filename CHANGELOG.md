@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.1 (2026-11-22)
+
+No changes to commands.
+
+- **Documentation site:** [speak2jerome.github.io/pbidriver](https://speak2jerome.github.io/pbidriver/), with setup for Claude Code, GitHub Copilot, Codex and Cursor, a command reference, how it works and a FAQ.
+- **Package metadata:** PyPI now links to the documentation and source, with more keywords and classifiers.
+- **Installing on other platforms:** pywin32 is only required on Windows, so the package installs elsewhere, for example in docs builds and CI. The commands still need Windows and Power BI Desktop.
+
 ## 0.1.0 (2026-11-22)
 
 First public release, as `pbidriver` (developed under the working name pbi_shot).

@@ -22,7 +22,7 @@ Key facts:
 - Commands: launch, instances, status, pages, alerts, visuals, shot, read, inventory, model, dax, perf, slicer,
   click, hover, menu, scroll, type, key, bookmarks, wait, dialog, reload, save, close.
 - Tested on Power BI Desktop 2.152 (March 2026) and 2.159 (November 2026), Microsoft Store builds.
-- Version 0.1.0, released 2026-11-22. Author: Jerome Eliezer (GitHub: speak2jerome). Licence: MIT.
+- Version 0.1.1, released 2026-11-22. Author: Jerome Eliezer (GitHub: speak2jerome). Licence: MIT.
 - Not an ODBC driver or data connector: "driver" as in WebDriver.
 
 ## Docs

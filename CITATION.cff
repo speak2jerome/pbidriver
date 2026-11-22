@@ -14,7 +14,7 @@ authors:
 repository-code: "https://github.com/speak2jerome/pbidriver"
 url: "https://speak2jerome.github.io/pbidriver/"
 license: MIT
-version: 0.1.0
+version: 0.1.1
 date-released: "2026-11-22"
 keywords:
   - Power BI
