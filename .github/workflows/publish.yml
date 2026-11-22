@@ -3,7 +3,8 @@
 # the PyPI part can also be run by hand from the Actions tab.
 #
 # npm: needs the trusted publisher on npmjs.com (package pbidriver > Settings > Trusted publishing >
-# GitHub Actions: owner speak2jerome, repository pbidriver, workflow publish.yml, environment npm).
+# GitHub Actions: owner speak2jerome, repository pbidriver, workflow publish.yml, environment npm, with
+# "Allow npm publish" ticked; without it npm only allows staged publishes and answers E403).
 # The npm job skips publishing when the version is already on npm, so re-runs stay green.
 name: Publish to PyPI and npm
 
@@ -84,5 +85,6 @@ jobs:
             echo "::error::npm refused the publish. 'E404 Not Found - PUT' means npm has no trusted publisher for this"
             echo "::error::workflow: npmjs.com > pbidriver > Settings > Trusted publishing > GitHub Actions, with"
             echo "::error::owner speak2jerome, repository pbidriver, workflow publish.yml, environment npm."
+            echo "::error::'E403 OIDC permission denied' means that trusted publisher lacks 'Allow npm publish'."
             exit 1
           }
