@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{#- Search, share and AI-answer metadata. Page descriptions come from extra.page_descriptions in mkdocs.yml (applied by
+    scripts/mkdocs_seo.py), so the Markdown files stay free of front matter and read cleanly on GitHub. -#}
+
+{% block htmltitle %}
+  {% if page and page.is_homepage %}
+    <title>{{ config.extra.home_title }}</title>
+  {% else %}
+    {{ super() }}
+  {% endif %}
+{% endblock %}
+
+{% block extrahead %}
+  {#- The 404 page has no page object; it gets no share tags. -#}
+  {% if page %}
+  {% set share_title = config.extra.home_title if page.is_homepage else (page.title | striptags) ~ " - " ~ config.site_name %}
+  {% set share_desc = page.meta.description or config.site_description %}
+  {% set share_image = config.site_url ~ "images/social-preview.png" %}
+  <meta name="keywords" content="{{ config.extra.keywords }}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{{ config.site_name }}">
+  <meta property="og:title" content="{{ share_title }}">
+  <meta property="og:description" content="{{ share_desc }}">
+  <meta property="og:url" content="{{ page.canonical_url }}">
+  <meta property="og:image" content="{{ share_image }}">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+  <meta property="og:image:alt" content="pbidriver: WebDriver for Power BI Desktop, with example commands in a terminal">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ share_title }}">
+  <meta name="twitter:description" content="{{ share_desc }}">
+  <meta name="twitter:image" content="{{ share_image }}">
+  {% if config.extra.google_site_verification %}
+    <meta name="google-site-verification" content="{{ config.extra.google_site_verification }}">
+  {% endif %}
+  {% if config.extra.bing_site_verification %}
+    <meta name="msvalidate.01" content="{{ config.extra.bing_site_verification }}">
+  {% endif %}
+  <link rel="alternate" type="text/plain" title="llms.txt" href="{{ config.site_url }}llms.txt">
+  {% if page.is_homepage %}
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "pbidriver",
+        "alternateName": "WebDriver for Power BI Desktop",
+        "description": {{ config.site_description | tojson }},
+        "url": {{ config.site_url | tojson }},
+        "applicationCategory": "DeveloperApplication",
+        "applicationSubCategory": "Automation and testing tool for Microsoft Power BI Desktop",
+        "operatingSystem": "Windows 10, Windows 11",
+        "softwareVersion": {{ config.extra.version | tojson }},
+        "softwareRequirements": "Python 3.9+, Microsoft Power BI Desktop",
+        "license": "https://opensource.org/licenses/MIT",
+        "isAccessibleForFree": true,
+        "downloadUrl": "https://pypi.org/project/pbidriver/",
+        "installUrl": "https://pypi.org/project/pbidriver/",
+        "codeRepository": {{ config.repo_url | tojson }},
+        "programmingLanguage": "Python",
+        "keywords": {{ config.extra.keywords | tojson }},
+        "featureList": [
+          "Pixel-exact screenshots of Power BI Desktop report pages, single visuals and the Table, Model, DAX query and TMDL views",
+          "Read the data behind visuals: chart points, cards, tables, matrices and slicers",
+          "Detect and answer in-app, native and legacy Internet Explorer dialogs",
+          "Apply slicers, click, hover for tooltips, open menus, scroll, type and apply bookmarks",
+          "Run DAX queries and list tables, columns, measures and relationships",
+          "Performance Analyzer timings per visual",
+          "Reload PBIP projects after edits on disk through the Desktop Bridge"
+        ],
+        "image": {{ share_image | tojson }},
+        "screenshot": {{ share_image | tojson }},
+        "author": {"@type": "Person", "name": "Jerome Eliezer", "alternateName": "speak2jerome", "url": "https://github.com/speak2jerome"},
+        "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
+        "sameAs": [{{ config.repo_url | tojson }}, "https://pypi.org/project/pbidriver/"]
+      }
+    </script>
+  {% endif %}
+  {% if page.meta.faq_jsonld %}
+    <script type="application/ld+json">{{ page.meta.faq_jsonld | safe }}</script>
+  {% endif %}
+  {% endif %}
+{% endblock %}

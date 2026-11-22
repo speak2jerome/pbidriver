@@ -1,8 +1,15 @@
 # pbidriver
 
+[![PyPI](https://img.shields.io/pypi/v/pbidriver)](https://pypi.org/project/pbidriver/)
+[![Python](https://img.shields.io/pypi/pyversions/pbidriver)](https://pypi.org/project/pbidriver/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-speak2jerome.github.io%2Fpbidriver-indigo)](https://speak2jerome.github.io/pbidriver/)
+
 **WebDriver for Power BI Desktop.** Let AI agents see and drive Power BI Desktop: screenshots of pages, visuals and every view, the data behind visuals, blocking dialogs, slicers, tooltips, menus, bookmarks, DAX and Performance Analyzer. It all runs locally against Power BI Desktop, with no screen grabs and no publishing to the service.
 
 (Not a data connector or ODBC driver: "driver" as in WebDriver, the thing that drives an app for automation.)
+
+**Documentation:** [speak2jerome.github.io/pbidriver](https://speak2jerome.github.io/pbidriver/), with [setup for Claude Code, Copilot, Codex and Cursor](https://speak2jerome.github.io/pbidriver/agents/) and a [FAQ](https://speak2jerome.github.io/pbidriver/faq/).
 
 Every command is a CLI call that prints one JSON object, so any agent that can run a shell command can use it: Claude Code, Codex, GitHub Copilot, Cursor or your own scripts.
 

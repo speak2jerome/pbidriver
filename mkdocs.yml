@@ -1,0 +1,87 @@
+site_name: pbidriver
+site_description: Open-source CLI that lets AI agents like Claude Code and GitHub Copilot screenshot, read and drive Power BI Desktop - visuals, slicers, dialogs, DAX.
+site_url: https://speak2jerome.github.io/pbidriver/
+site_author: Jerome Eliezer
+repo_url: https://github.com/speak2jerome/pbidriver
+repo_name: speak2jerome/pbidriver
+edit_uri: edit/main/docs/
+copyright: MIT License - Jerome Eliezer
+exclude_docs: |
+  overrides/
+
+theme:
+  name: material
+  custom_dir: docs/overrides
+  logo: images/logo.svg
+  favicon: images/logo.svg
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: amber
+      toggle: {icon: material/weather-night, name: Dark theme}
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: amber
+      toggle: {icon: material/weather-sunny, name: Light theme}
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+
+nav:
+  - Home: index.md
+  - Use with AI agents: agents.md
+  - Command reference: commands.md
+  - How it works: how-it-works.md
+  - FAQ: faq.md
+  - Changelog: changelog.md
+
+hooks:
+  - scripts/mkdocs_seo.py
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - tables
+  - attr_list
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
+
+extra:
+  home_title: "pbidriver: let AI agents see and drive Power BI Desktop"
+  keywords: >-
+    Power BI Desktop, Power BI automation, AI agents, Claude Code, GitHub Copilot, Codex, Cursor, screenshot,
+    Power BI visual screenshot, slicer automation, DAX query, PBIP, PBIR, Performance Analyzer, WebView2,
+    Chrome DevTools Protocol, Desktop Bridge, CLI
+  # Search engine ownership checks. Paste the content value of the meta tag that Google Search Console or Bing
+  # Webmaster Tools gives you; empty means no tag.
+  google_site_verification: "voiK2NTjkdsh3st85sjbaF-VugDd_sH2VOiPqiO6G7s"
+  bing_site_verification: "23B6980AF58C7E62CF313AF133172A1C"
+  # Meta descriptions, keyed by the file's path inside docs/. The home page uses site_description.
+  page_descriptions:
+    agents.md: >-
+      Set up pbidriver with Claude Code, GitHub Copilot, Codex or Cursor so your AI agent can screenshot, read and
+      drive Power BI Desktop, with ready-made recipes.
+    commands.md: >-
+      Every pbidriver command: Power BI Desktop screenshots, visual data, slicers, clicks, menus, dialogs, DAX queries,
+      Performance Analyzer, reload, save and close.
+    how-it-works.md: >-
+      How pbidriver drives Power BI Desktop: WebView2 DevTools, Microsoft's Desktop Bridge, dialog handling, reading
+      visual data, DAX over ADOMD.NET, security and limits.
+    faq.md: >-
+      Answers about pbidriver: can AI agents see Power BI Desktop, screenshot a visual from the command line, apply
+      slicers, read chart data, run DAX, and more.
+    changelog.md: Release history of pbidriver, the open-source WebDriver for Power BI Desktop.

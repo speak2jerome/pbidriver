@@ -13,26 +13,39 @@ requires-python = ">=3.9"
 dependencies = [
     "playwright>=1.40",
     "psutil>=5.9",
-    "pywin32>=306",
+    "pywin32>=306; sys_platform == 'win32'",
     "pillow>=10.0",
 ]
-keywords = ["power bi", "power bi desktop", "screenshot", "ai agents", "webview2", "devtools", "dax", "automation"]
+keywords = [
+    "power bi", "power bi desktop", "powerbi", "ai agents", "claude code", "github copilot", "codex", "cursor",
+    "screenshot", "automation", "ui automation", "slicer", "dax", "pbip", "pbir", "performance analyzer",
+    "webview2", "chrome devtools protocol", "playwright", "desktop bridge",
+]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",
     "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
     "License :: OSI Approved :: MIT License",
     "Operating System :: Microsoft :: Windows",
+    "Operating System :: Microsoft :: Windows :: Windows 10",
+    "Operating System :: Microsoft :: Windows :: Windows 11",
     "Programming Language :: Python :: 3",
-    "Topic :: Software Development :: Testing",
+    "Programming Language :: Python :: 3 :: Only",
     "Topic :: Office/Business",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing",
 ]
 
 [project.optional-dependencies]
 test = ["pytest>=7"]
+docs = ["mkdocs>=1.6,<2", "mkdocs-material>=9.5"]
 
 [project.urls]
-Homepage = "https://github.com/speak2jerome/pbidriver"
+Homepage = "https://speak2jerome.github.io/pbidriver/"
+Documentation = "https://speak2jerome.github.io/pbidriver/"
+Source = "https://github.com/speak2jerome/pbidriver"
 Issues = "https://github.com/speak2jerome/pbidriver/issues"
 Changelog = "https://github.com/speak2jerome/pbidriver/blob/main/CHANGELOG.md"
 

@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use pbidriver in your work, please cite it as below."
+title: "pbidriver: WebDriver for Power BI Desktop"
+abstract: >-
+  pbidriver is an open-source command-line tool that lets AI agents see and drive Microsoft Power BI Desktop:
+  pixel-exact screenshots of report pages, visuals and views, the data behind visuals, blocking dialogs, slicers,
+  tooltips, menus and bookmarks, DAX queries, model metadata and Performance Analyzer timings. It works through Power
+  BI Desktop's WebView2 DevTools, Microsoft's Desktop Bridge and the local Analysis Services engine.
+type: software
+authors:
+  - given-names: Jerome
+    family-names: Eliezer
+    alias: speak2jerome
+repository-code: "https://github.com/speak2jerome/pbidriver"
+url: "https://speak2jerome.github.io/pbidriver/"
+license: MIT
+version: 0.1.0
+date-released: "2026-11-22"
+keywords:
+  - Power BI
+  - Power BI Desktop
+  - AI agents
+  - automation
+  - screenshot
+  - DAX
+  - WebView2
+  - Chrome DevTools Protocol

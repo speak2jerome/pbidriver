@@ -11,6 +11,10 @@ dist/
 # Captures written by the tool
 pbidriver_shots/
 
+# Docs build output (docs/llms.txt is copied from the root llms.txt at build time)
+site/
+docs/llms.txt
+
 # Power BI files: reports and data stay out of the repository
 *.pbix
 *.pbit
