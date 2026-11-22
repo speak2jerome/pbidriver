@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+
+# Captures written by the tool
+pbidriver_shots/
+
+# Power BI files: reports and data stay out of the repository
+*.pbix
+*.pbit
+*.pbip
+*.Report/
+*.SemanticModel/
+*.Dataset/
