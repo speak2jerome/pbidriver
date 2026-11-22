@@ -8,6 +8,10 @@ dist/
 *.egg-info/
 .pytest_cache/
 
+# npm
+node_modules/
+*.tgz
+
 # Captures written by the tool
 pbidriver_shots/
 

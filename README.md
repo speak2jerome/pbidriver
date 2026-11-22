@@ -180,6 +180,13 @@ pytest
 
 The tests use synthetic report files and need no Power BI. For live checks, `launch` a copy of a report and run the commands above.
 
+The npm package in `npm/` is a thin Node wrapper that runs the same Python CLI; test it with `npm test` inside `npm/`.
+
+**Releasing:**
+1. Raise the version in `pbidriver/__init__.py` and `npm/package.json`; a test checks they match.
+2. Add a `CHANGELOG.md` entry.
+3. Tag `vX.Y.Z` and publish a GitHub release. The Publish workflow uploads to PyPI and npm through trusted publishing.
+
 ## Author
 
 Jerome Eliezer ([speak2jerome](https://github.com/speak2jerome))

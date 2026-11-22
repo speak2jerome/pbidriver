@@ -74,6 +74,15 @@ def test_pick_by_index_text_and_ambiguity():
         cli.pick(items, "detail", "page", "name")
 
 
+def test_npm_package_version_matches():
+    from pathlib import Path
+
+    import pbidriver
+
+    package = json.loads((Path(__file__).resolve().parents[1] / "npm" / "package.json").read_text(encoding="utf-8"))
+    assert package["version"] == pbidriver.__version__
+
+
 def test_adomd_column_names_are_cleaned():
     assert bridge._clean_columns(["[Name]", "Sales[Region]", "Total"]) == ["Name", "Sales[Region]", "Total"]
 

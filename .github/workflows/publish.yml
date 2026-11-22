@@ -1,7 +1,11 @@
-# Builds pbidriver and publishes it to PyPI with Trusted Publishing (OIDC):
-# no API token is stored anywhere. Runs when a GitHub release is published,
-# or by hand from the Actions tab.
-name: Publish to PyPI
+# Builds pbidriver and publishes it to PyPI and npm with Trusted Publishing (OIDC):
+# no API token is stored anywhere. Runs when a GitHub release is published;
+# the PyPI part can also be run by hand from the Actions tab.
+#
+# npm: the trusted publisher (package pbidriver -> this repository, workflow publish.yml) is set up on
+# npmjs.com after the package's first, manual publish. npm expires an unused configuration after two
+# days, so add it right before a release.
+name: Publish to PyPI and npm
 
 on:
   release:
@@ -39,3 +43,29 @@ jobs:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
+
+  npm:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    environment:
+      name: npm
+      url: https://www.npmjs.com/package/pbidriver
+    permissions:
+      contents: read
+      id-token: write  # lets npm verify this workflow; no token needed
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"  # ships npm 11, which supports trusted publishing
+          registry-url: "https://registry.npmjs.org"
+      - name: Check the npm and Python versions match
+        run: |
+          py=$(grep -Po '__version__ = "\K[^"]+' pbidriver/__init__.py)
+          js=$(node -p "require('./npm/package.json').version")
+          test "$py" = "$js" || { echo "pbidriver/__init__.py says $py but npm/package.json says $js"; exit 1; }
+      - name: Publish
+        working-directory: npm
+        run: |
+          cp ../LICENSE LICENSE
+          npm publish --access public

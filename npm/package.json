@@ -1,0 +1,52 @@
+{
+  "name": "pbidriver",
+  "version": "0.1.1",
+  "description": "WebDriver for Power BI Desktop: let AI agents see and drive it (screenshots, visual data, dialogs, slicers, DAX, Performance Analyzer). Runs the pbidriver CLI from Node.",
+  "keywords": [
+    "power-bi",
+    "powerbi",
+    "power-bi-desktop",
+    "ai-agents",
+    "claude-code",
+    "github-copilot",
+    "codex",
+    "cursor",
+    "screenshot",
+    "automation",
+    "ui-automation",
+    "dax",
+    "pbip",
+    "webview2",
+    "chrome-devtools-protocol",
+    "cli"
+  ],
+  "homepage": "https://speak2jerome.github.io/pbidriver/",
+  "bugs": {
+    "url": "https://github.com/speak2jerome/pbidriver/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/speak2jerome/pbidriver.git",
+    "directory": "npm"
+  },
+  "license": "MIT",
+  "author": "Jerome Eliezer (https://github.com/speak2jerome)",
+  "type": "commonjs",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "bin": {
+    "pbidriver": "bin/pbidriver.js"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "index.js",
+    "index.d.ts"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}
